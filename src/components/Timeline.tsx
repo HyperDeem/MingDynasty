@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  DYNASTY_YEAR_SPAN,
   getVisibleEvents,
   type ChronicleEvent,
   type TimelineMode,
@@ -19,31 +20,21 @@ import { EventTagLegend } from "@/components/EventTag";
 
 interface TimelineProps {
   mode: TimelineMode;
-  detailLevel: number;
   onModeChange: (mode: TimelineMode) => void;
-  onDetailChange: (level: number) => void;
   activeEventId: string | null;
   activeEmperorId: EmperorId | null;
   onSelectEvent: (event: ChronicleEvent) => void;
   onSelectEmperor: (band: EmperorBand) => void;
 }
 
-/** 按内容可读性分配槽位高度，避免文字重叠 */
-function slotHeight(
-  weight: ChronicleEvent["weight"],
-  mode: TimelineMode,
-  detailLevel: number
-) {
-  const base = weight === "turning" ? 92 : weight === "major" ? 70 : 52;
-  if (mode === "core") return base + 8;
-  return base + detailLevel * 18;
+function yearToPercent(year: number) {
+  const { start, total } = DYNASTY_YEAR_SPAN;
+  return ((year - start) / (total - 1)) * 100;
 }
 
 export function Timeline({
   mode,
-  detailLevel,
   onModeChange,
-  onDetailChange,
   activeEventId,
   activeEmperorId,
   onSelectEvent,
@@ -51,113 +42,125 @@ export function Timeline({
 }: TimelineProps) {
   const [hoveredBand, setHoveredBand] = useState<string | null>(null);
 
-  const events = useMemo(
-    () => getVisibleEvents(mode, detailLevel),
-    [mode, detailLevel]
-  );
+  const events = useMemo(() => getVisibleEvents(mode), [mode]);
 
-  /**
-   * 事件按年排序后「堆叠排版」：
-   * 不拘泥严格年份比例，保证相邻节点可读间距
-   */
-  const { positioned, trackHeight } = useMemo(() => {
-    const padTop = 12;
-    const padBottom = 28;
-    let cursor = padTop;
-    const items = events.map((event) => {
-      const h = slotHeight(event.weight, mode, detailLevel);
-      const top = cursor;
-      cursor += h;
-      return {
-        event,
-        top,
-        dimmed:
-          activeEmperorId !== null && event.emperorId !== activeEmperorId,
-      };
-    });
-    return {
-      positioned: items,
-      trackHeight: Math.max(cursor + padBottom, 480),
-    };
-  }, [events, mode, detailLevel, activeEmperorId]);
-
-  /** 色带：相对年跨度 + 短年号保底，归一化到 trackHeight */
+  /** 皇帝色带：按在位年跨度横向铺满 */
   const bandLayouts = useMemo(() => {
-    const start = 1368;
-    const end = 1644;
+    const start = DYNASTY_YEAR_SPAN.start;
+    const end = DYNASTY_YEAR_SPAN.end;
     const span = end - start + 1;
     const raw = EMPEROR_BANDS.map((band) => {
       const years = Math.max(band.endYear - band.startYear + 1, 1);
-      return {
-        band,
-        weight: Math.max(years / span, 0.022),
-      };
+      return { band, weight: Math.max(years / span, 0.018) };
     });
     const sum = raw.reduce((s, r) => s + r.weight, 0);
-    let y = 0;
+    let x = 0;
     return raw.map(({ band, weight }) => {
-      const height = (weight / sum) * trackHeight;
-      const top = y;
-      y += height;
-      return { band, top, height };
+      const size = (weight / sum) * 100;
+      const offset = x;
+      x += size;
+      return { band, offset, size };
     });
-  }, [trackHeight]);
+  }, []);
+
+  /** 事件按年定位；同邻年份交替上下标签 */
+  const positioned = useMemo(() => {
+    return events.map((event, index) => ({
+      event,
+      leftPercent: yearToPercent(event.year),
+      labelAbove: index % 2 === 0,
+      dimmed:
+        activeEmperorId !== null && event.emperorId !== activeEmperorId,
+    }));
+  }, [events, activeEmperorId]);
+
+  const showEvents = mode === "core";
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <ModeToggle
-        mode={mode}
-        detailLevel={detailLevel}
-        onModeChange={onModeChange}
-        onDetailChange={onDetailChange}
-      />
+    <div className="flex flex-col gap-2 px-4 pb-3 pt-2 md:px-6 md:pb-4 md:pt-3">
+      <ModeToggle mode={mode} onModeChange={onModeChange} />
 
-      <div className="px-5 pb-2 pt-2 md:px-6">
-        <EventTagLegend />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {showEvents ? (
+          <EventTagLegend />
+        ) : (
+          <p className="text-[11px] text-ink-400">
+            仅展示皇帝更替色带 · 点击色块打开谱系
+          </p>
+        )}
+        <p className="font-display text-[10px] tracking-widest text-ink-300">
+          1368 — 1644
+        </p>
       </div>
 
       <nav
-        className="scrollbar-timeline relative min-h-0 flex-1 overflow-y-auto px-3 pb-10 pt-2 md:px-4"
+        className="relative w-full"
         aria-label="明朝编年时间轴"
       >
-        <motion.div
-          className="relative flex gap-3 md:gap-4"
-          animate={{ height: trackHeight }}
-          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <EmperorStrip
-            layouts={bandLayouts}
-            trackHeight={trackHeight}
-            activeEmperorId={activeEmperorId}
-            hoveredId={hoveredBand}
-            onHover={setHoveredBand}
-            onSelect={onSelectEmperor}
-          />
+        <AnimatePresence mode="wait">
+          {showEvents ? (
+            <motion.div
+              key="core-track"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.28 }}
+              className="relative mb-2 h-[7.5rem] w-full md:h-[8.25rem]"
+            >
+              {/* 年轴线 */}
+              <div
+                className="pointer-events-none absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-cinnabar/35 via-ink-400/25 to-ink-300/20"
+                aria-hidden
+              />
 
-          <div className="relative min-w-0 flex-1">
-            <div
-              className="pointer-events-none absolute bottom-0 left-[9px] top-0 w-px bg-gradient-to-b from-cinnabar/40 via-ink-400/25 to-ink-300/15"
-              aria-hidden
-            />
+              {/* 起止刻度 */}
+              <span className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 text-[9px] tabular-nums text-ink-300">
+                1368
+              </span>
+              <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[9px] tabular-nums text-ink-300">
+                1644
+              </span>
 
-            <AnimatePresence mode="popLayout">
-              {positioned.map(({ event, top, dimmed }) => (
-                <EventNode
-                  key={event.id}
-                  event={event}
-                  top={top}
-                  isActive={activeEventId === event.id}
-                  dimmed={dimmed}
-                  onSelect={onSelectEvent}
-                />
-              ))}
-            </AnimatePresence>
-          </div>
-        </motion.div>
+              <AnimatePresence mode="popLayout">
+                {positioned.map(({ event, leftPercent, labelAbove, dimmed }) => (
+                  <EventNode
+                    key={event.id}
+                    event={event}
+                    leftPercent={leftPercent}
+                    labelAbove={labelAbove}
+                    isActive={activeEventId === event.id}
+                    dimmed={dimmed}
+                    onSelect={onSelectEvent}
+                  />
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="chronicle-hint"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="mb-1 flex h-8 items-end justify-between px-0.5 text-[10px] tabular-nums text-ink-400"
+            >
+              <span>洪武</span>
+              <span>永乐</span>
+              <span>嘉靖</span>
+              <span>万历</span>
+              <span>崇祯</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        <p className="mt-4 text-center font-display text-[10px] tracking-widest text-ink-300">
-          明 · 终 · 1644 · 节点已按可读性排布
-        </p>
+        <EmperorStrip
+          layouts={bandLayouts}
+          orientation="horizontal"
+          trackExtent={100}
+          activeEmperorId={activeEmperorId}
+          hoveredId={hoveredBand}
+          onHover={setHoveredBand}
+          onSelect={onSelectEmperor}
+        />
       </nav>
     </div>
   );

@@ -24,19 +24,16 @@ type RightView =
 function yearFromPeriod(periodId: PeriodId): number {
   const p = getPeriodById(periodId);
   if (p.startYear === p.endYear) return p.startYear;
-  // 取时期中段，便于落在对应疆域快照区间
   return Math.round((p.startYear + p.endYear) / 2);
 }
 
 export default function HomePage() {
   const [mode, setMode] = useState<TimelineMode>("core");
-  const [detailLevel, setDetailLevel] = useState(0.35);
   const [rightView, setRightView] = useState<RightView>({
     kind: "period",
     periodId: DYNASTY_META.defaultPeriodId,
     eventId: null,
   });
-  /** 显式年份状态：驱动疆域图；可由事件点击覆盖 */
   const [currentYear, setCurrentYear] = useState(() =>
     yearFromPeriod(DYNASTY_META.defaultPeriodId)
   );
@@ -71,15 +68,12 @@ export default function HomePage() {
     });
   }, []);
 
-  const handleModeChange = useCallback(
-    (next: TimelineMode) => {
-      setMode(next);
-      if (next === "chronicle" && detailLevel < 0.2) {
-        setDetailLevel(0.35);
-      }
-    },
-    [detailLevel]
-  );
+  const handleSelectMapYear = useCallback((year: number) => {
+    setCurrentYear(year);
+    setRightView((prev) =>
+      prev.kind === "period" ? { ...prev, eventId: null } : prev
+    );
+  }, []);
 
   const activeEventId =
     rightView.kind === "period" ? rightView.eventId : null;
@@ -90,13 +84,6 @@ export default function HomePage() {
     rightView.kind === "genealogy"
       ? `gen-${rightView.emperorId}`
       : `per-${rightView.periodId}`;
-
-  const handleSelectMapYear = useCallback((year: number) => {
-    setCurrentYear(year);
-    setRightView((prev) =>
-      prev.kind === "period" ? { ...prev, eventId: null } : prev
-    );
-  }, []);
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden">
@@ -119,60 +106,49 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col md:flex-row">
-        <aside className="flex max-h-[42vh] w-full shrink-0 flex-col border-b border-ink-800/10 md:max-h-none md:w-[340px] md:border-b-0 md:border-r lg:w-[380px]">
-          <div className="px-5 pb-1 pt-4 md:px-6">
-            <h2 className="font-display text-sm font-medium tracking-widest text-ink-500">
-              朝代时间轴
-            </h2>
-            <p className="mt-0.5 text-xs text-ink-400">
-              点击事件切换疆域图 · 色带打开谱系
-            </p>
-          </div>
-          <Timeline
-            mode={mode}
-            detailLevel={detailLevel}
-            onModeChange={handleModeChange}
-            onDetailChange={setDetailLevel}
-            activeEventId={activeEventId}
-            activeEmperorId={activeEmperorId}
-            onSelectEvent={handleSelectEvent}
-            onSelectEmperor={handleSelectEmperor}
-          />
-        </aside>
+      {/* 主内容：全宽，时间轴改到底部 */}
+      <section className="relative z-10 min-h-0 flex-1 overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={panelKey}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+            className={
+              rightView.kind === "genealogy"
+                ? "h-full min-h-0 overflow-hidden"
+                : "h-full min-h-0 overflow-y-auto scrollbar-timeline"
+            }
+          >
+            {rightView.kind === "genealogy" ? (
+              <GenealogyPanel
+                emperorId={rightView.emperorId}
+                onSelectEmperor={handleGenealogyEmperor}
+                onClose={handleCloseGenealogy}
+              />
+            ) : (
+              <PeriodPanel
+                periodId={rightView.periodId}
+                highlightEventId={rightView.eventId}
+                currentYear={currentYear}
+                onSelectYear={handleSelectMapYear}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </section>
 
-        <section className="min-h-0 flex-1 overflow-hidden">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={panelKey}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 6 }}
-              transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-              className={
-                rightView.kind === "genealogy"
-                  ? "h-full min-h-0 overflow-hidden"
-                  : "h-full min-h-0 overflow-y-auto scrollbar-timeline"
-              }
-            >
-              {rightView.kind === "genealogy" ? (
-                <GenealogyPanel
-                  emperorId={rightView.emperorId}
-                  onSelectEmperor={handleGenealogyEmperor}
-                  onClose={handleCloseGenealogy}
-                />
-              ) : (
-                <PeriodPanel
-                  periodId={rightView.periodId}
-                  highlightEventId={rightView.eventId}
-                  currentYear={currentYear}
-                  onSelectYear={handleSelectMapYear}
-                />
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </section>
-      </div>
+      <footer className="relative z-20 shrink-0 border-t border-ink-800/10 bg-[rgba(251,249,243,0.92)] backdrop-blur-sm">
+        <Timeline
+          mode={mode}
+          onModeChange={setMode}
+          activeEventId={activeEventId}
+          activeEmperorId={activeEmperorId}
+          onSelectEvent={handleSelectEvent}
+          onSelectEmperor={handleSelectEmperor}
+        />
+      </footer>
     </div>
   );
 }

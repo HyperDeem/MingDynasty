@@ -4,9 +4,13 @@ import type { PeriodId } from "./ming-dynasty";
 
 /**
  * 全朝代编年事件
- * - turning：核心主线大节点（核心模式仅显示此类，约 15–20 条）
- * - major：重要事件（编年史模式）
- * - minor：细节年份（编年史 + 放大）
+ * - turning：核心主线大节点
+ * - major：重要事件（已并入核心主线展示）
+ * - minor：细节年份（仅时期面板详情，不进入时间轴）
+ *
+ * 时间轴模式：
+ * - core：展示 turning + major
+ * - chronicle：仅皇帝更替色带，不展示事件节点
  */
 
 export type EventWeight = "turning" | "major" | "minor";
@@ -406,19 +410,11 @@ export const DYNASTY_YEAR_SPAN = {
   total: 1644 - 1368 + 1,
 };
 
-/** 按模式与「放大」程度过滤可见事件 */
-export function getVisibleEvents(
-  mode: TimelineMode,
-  detailLevel: number
-): ChronicleEvent[] {
-  if (mode === "core") {
-    return CHRONICLE_EVENTS.filter((e) => e.weight === "turning");
-  }
-  // detailLevel 0–1：0 仅 turning+major，1 含全部 minor
-  if (detailLevel < 0.45) {
-    return CHRONICLE_EVENTS.filter((e) => e.weight !== "minor");
-  }
-  return CHRONICLE_EVENTS;
+/** 按时间轴模式过滤可见事件（编年史模式不展示事件节点） */
+export function getVisibleEvents(mode: TimelineMode): ChronicleEvent[] {
+  if (mode === "chronicle") return [];
+  // 核心主线：原转折点 + 原编年史重要事件
+  return CHRONICLE_EVENTS.filter((e) => e.weight !== "minor");
 }
 
 export function getEventsByEmperor(emperorId: EmperorId): ChronicleEvent[] {
@@ -434,5 +430,5 @@ export function getEventsByPeriod(periodId: PeriodId): ChronicleEvent[] {
 }
 
 export function countCoreEvents(): number {
-  return CHRONICLE_EVENTS.filter((e) => e.weight === "turning").length;
+  return CHRONICLE_EVENTS.filter((e) => e.weight !== "minor").length;
 }

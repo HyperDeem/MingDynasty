@@ -9,13 +9,17 @@ import {
 
 export interface BandLayout {
   band: EmperorBand;
-  top: number;
-  height: number;
+  /** 横向：距左百分比 0–100；纵向：距顶 px */
+  offset: number;
+  /** 横向：宽度百分比；纵向：高度 px */
+  size: number;
 }
 
 interface EmperorStripProps {
   layouts: BandLayout[];
-  trackHeight: number;
+  orientation?: "horizontal" | "vertical";
+  /** 纵向模式轨道高度；横向模式轨道高度用 class 控制 */
+  trackExtent: number;
   activeEmperorId: EmperorId | null;
   hoveredId: string | null;
   onHover: (bandKey: string | null) => void;
@@ -35,12 +39,14 @@ function yingzongReignTag(band: EmperorBand): string | null {
 
 export function EmperorStrip({
   layouts,
-  trackHeight,
+  orientation = "horizontal",
+  trackExtent,
   activeEmperorId,
   hoveredId,
   onHover,
   onSelect,
 }: EmperorStripProps) {
+  const horizontal = orientation === "horizontal";
   const hovered =
     hoveredId != null
       ? layouts.find((l) => bandKey(l.band) === hoveredId)
@@ -52,17 +58,28 @@ export function EmperorStrip({
 
   return (
     <div
-      className="relative w-11 shrink-0 md:w-14"
-      style={{ height: trackHeight }}
+      className={
+        horizontal
+          ? "relative h-10 w-full shrink-0 md:h-11"
+          : "relative w-11 shrink-0 md:w-14"
+      }
+      style={horizontal ? undefined : { height: trackExtent }}
       aria-label="在位皇帝色带（年号）"
     >
-      <div className="absolute inset-y-0 left-1 right-1 overflow-hidden rounded-sm md:left-1.5 md:right-1.5">
-        {layouts.map(({ band, top, height }, index) => {
+      <div
+        className={
+          horizontal
+            ? "absolute inset-x-0 bottom-0 top-0 overflow-hidden rounded-sm"
+            : "absolute inset-y-0 left-1 right-1 overflow-hidden rounded-sm md:left-1.5 md:right-1.5"
+        }
+      >
+        {layouts.map(({ band, offset, size }, index) => {
           const key = bandKey(band);
           const isHovered = hoveredId === key;
           const isActive = activeEmperorId === band.id;
           const dimmed = activeEmperorId !== null && !isActive && !isHovered;
           const reignTag = yingzongReignTag(band);
+          const showTag = horizontal ? size > 3.2 : size > 22;
 
           return (
             <button
@@ -74,12 +91,15 @@ export function EmperorStrip({
               onFocus={() => onHover(key)}
               onBlur={() => onHover(null)}
               onClick={() => onSelect(band)}
-              className="absolute left-0 right-0 transition-[opacity,filter] duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cinnabar/50"
+              className="absolute transition-[opacity,filter] duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cinnabar/50"
               style={{
-                top,
-                height,
-                background: `linear-gradient(180deg, ${band.accent}, ${band.color})`,
-                opacity: dimmed ? 0.25 : isActive || isHovered ? 1 : 0.8,
+                ...(horizontal
+                  ? { left: `${offset}%`, width: `${size}%`, top: 0, bottom: 0 }
+                  : { top: offset, height: size, left: 0, right: 0 }),
+                background: horizontal
+                  ? `linear-gradient(90deg, ${band.accent}, ${band.color})`
+                  : `linear-gradient(180deg, ${band.accent}, ${band.color})`,
+                opacity: dimmed ? 0.25 : isActive || isHovered ? 1 : 0.82,
                 filter:
                   isActive || isHovered
                     ? "saturate(1.2) brightness(1.05)"
@@ -88,13 +108,21 @@ export function EmperorStrip({
                 boxShadow: isActive
                   ? "inset 0 0 0 2px rgba(255,255,255,0.55)"
                   : index > 0
-                    ? "inset 0 1px 0 rgba(255,255,255,0.12)"
+                    ? horizontal
+                      ? "inset 1px 0 0 rgba(255,255,255,0.12)"
+                      : "inset 0 1px 0 rgba(255,255,255,0.12)"
                     : undefined,
               }}
               aria-pressed={isActive}
             >
-              {reignTag && height > 22 && (
-                <span className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 text-center font-display text-[9px] font-medium text-white/95 drop-shadow">
+              {reignTag && showTag && (
+                <span
+                  className={`pointer-events-none absolute font-display text-[9px] font-medium text-white/95 drop-shadow ${
+                    horizontal
+                      ? "inset-x-0 top-1/2 -translate-y-1/2 text-center"
+                      : "inset-x-0 top-1/2 -translate-y-1/2 text-center"
+                  }`}
+                >
                   {reignTag}
                 </span>
               )}
@@ -107,18 +135,26 @@ export function EmperorStrip({
         {(hovered || (activeLayouts.length > 0 && !hovered)) &&
           (() => {
             const layout = hovered ?? activeLayouts[0];
-            const { band, top, height } = layout;
-            const mid = top + height / 2;
+            const { band, offset, size } = layout;
+            const mid = offset + size / 2;
             const isDual = band.id === "yingzong";
             return (
               <motion.div
                 key={`tip-${bandKey(band)}`}
-                initial={{ opacity: 0, x: 6 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 4 }}
+                initial={{ opacity: 0, y: horizontal ? 6 : 0, x: horizontal ? 0 : 6 }}
+                animate={{ opacity: 1, y: 0, x: 0 }}
+                exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="pointer-events-none absolute left-full z-40 ml-2 max-w-[11rem]"
-                style={{ top: mid, transform: "translateY(-50%)" }}
+                className={`pointer-events-none absolute z-40 max-w-[12rem] ${
+                  horizontal
+                    ? "bottom-full mb-2 -translate-x-1/2"
+                    : "left-full ml-2 -translate-y-1/2"
+                }`}
+                style={
+                  horizontal
+                    ? { left: `${mid}%` }
+                    : { top: mid }
+                }
               >
                 <div className="rounded border border-ink-800/10 bg-ink-900/92 px-2.5 py-1.5 shadow-lg backdrop-blur-sm">
                   <p className="font-display text-[12px] font-medium text-ink-50">
