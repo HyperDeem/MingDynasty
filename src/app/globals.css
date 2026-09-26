@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: #f3ebe0;
+  --paper-deep: #e8dcc8;
+  --ink: #2a231a;
+  --cinnabar: #c43c2c;
+  --line: rgba(42, 35, 26, 0.12);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  color: var(--ink);
+  background:
+    radial-gradient(ellipse 120% 80% at 10% 0%, rgba(196, 60, 44, 0.06), transparent 50%),
+    radial-gradient(ellipse 80% 60% at 100% 100%, rgba(45, 106, 90, 0.07), transparent 45%),
+    linear-gradient(165deg, #f7f1e8 0%, var(--paper) 45%, #ebe2d2 100%);
+  background-attachment: fixed;
+}
+
+/* 宣纸纹理感 */
+body::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+  z-index: 0;
+}
+
+#__next,
+main {
+  position: relative;
+  z-index: 1;
+}
+
+@layer utilities {
+  .scrollbar-timeline {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(142, 117, 79, 0.45) transparent;
+  }
+
+  .scrollbar-timeline::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .scrollbar-timeline::-webkit-scrollbar-thumb {
+    background: rgba(142, 117, 79, 0.45);
+    border-radius: 999px;
+  }
+
+  .content-enter {
+    animation: fade-slide-in 0.45s ease-out both;
+  }
+
+  .content-enter-delay-1 {
+    animation-delay: 0.08s;
+  }
+
+  .content-enter-delay-2 {
+    animation-delay: 0.16s;
+  }
+
+  .content-enter-delay-3 {
+    animation-delay: 0.24s;
+  }
+}
+
+/* 疆域图 Canvas：对齐 lineage-forest 迁徙图冷灰绿衬底 */
+.territory-canvas-wrap {
+  background:
+    linear-gradient(180deg, #f8f9f5bd, #eff2ec94),
+    var(--paper, #f4f1e9);
+}
+
+.territory-render-canvas {
+  display: block;
+  outline: none;
+  cursor: grab;
+}
+
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
