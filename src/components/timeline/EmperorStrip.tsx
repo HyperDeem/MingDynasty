@@ -9,17 +9,18 @@ import {
 
 export interface BandLayout {
   band: EmperorBand;
-  /** 横向：距左百分比 0–100；纵向：距顶 px */
+  /** 横向：距左百分比 0–100 */
   offset: number;
-  /** 横向：宽度百分比；纵向：高度 px */
+  /** 横向：宽度百分比 */
   size: number;
 }
 
 interface EmperorStripProps {
   layouts: BandLayout[];
-  orientation?: "horizontal" | "vertical";
-  /** 纵向模式轨道高度；横向模式轨道高度用 class 控制 */
-  trackExtent: number;
+  /** 缩略条更矮，仅色块 */
+  compact?: boolean;
+  /** 是否在色块上显示年号 */
+  showEraLabels?: boolean;
   activeEmperorId: EmperorId | null;
   hoveredId: string | null;
   onHover: (bandKey: string | null) => void;
@@ -30,23 +31,15 @@ function bandKey(band: EmperorBand) {
   return `${band.id}-${band.startYear}`;
 }
 
-function yingzongReignTag(band: EmperorBand): string | null {
-  if (band.id !== "yingzong") return null;
-  if (band.periodIds.includes("zhengtong")) return "正统";
-  if (band.periodIds.includes("tianshun")) return "天顺";
-  return null;
-}
-
 export function EmperorStrip({
   layouts,
-  orientation = "horizontal",
-  trackExtent,
+  compact = false,
+  showEraLabels = false,
   activeEmperorId,
   hoveredId,
   onHover,
   onSelect,
 }: EmperorStripProps) {
-  const horizontal = orientation === "horizontal";
   const hovered =
     hoveredId != null
       ? layouts.find((l) => bandKey(l.band) === hoveredId)
@@ -58,72 +51,50 @@ export function EmperorStrip({
 
   return (
     <div
-      className={
-        horizontal
-          ? "relative h-10 w-full shrink-0 md:h-11"
-          : "relative w-11 shrink-0 md:w-14"
-      }
-      style={horizontal ? undefined : { height: trackExtent }}
+      className={`relative w-full shrink-0 ${
+        compact ? "h-5 md:h-6" : "h-9 md:h-10"
+      }`}
       aria-label="在位皇帝色带（年号）"
     >
-      <div
-        className={
-          horizontal
-            ? "absolute inset-x-0 bottom-0 top-0 overflow-hidden rounded-sm"
-            : "absolute inset-y-0 left-1 right-1 overflow-hidden rounded-sm md:left-1.5 md:right-1.5"
-        }
-      >
+      <div className="absolute inset-0 overflow-hidden rounded-sm">
         {layouts.map(({ band, offset, size }, index) => {
           const key = bandKey(band);
           const isHovered = hoveredId === key;
           const isActive = activeEmperorId === band.id;
           const dimmed = activeEmperorId !== null && !isActive && !isHovered;
-          const reignTag = yingzongReignTag(band);
-          const showTag = horizontal ? size > 3.2 : size > 22;
 
           return (
             <button
               key={key}
               type="button"
-              title={`${band.displayName}（${getEmperorDisplayRange(band)}）· 点击打开谱系`}
+              title={`${band.displayName} · ${band.eraLabel}（${getEmperorDisplayRange(band)}）· 点击打开谱系`}
               onMouseEnter={() => onHover(key)}
               onMouseLeave={() => onHover(null)}
               onFocus={() => onHover(key)}
               onBlur={() => onHover(null)}
               onClick={() => onSelect(band)}
-              className="absolute transition-[opacity,filter] duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cinnabar/50"
+              className="absolute top-0 bottom-0 transition-[opacity,filter] duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cinnabar/50"
               style={{
-                ...(horizontal
-                  ? { left: `${offset}%`, width: `${size}%`, top: 0, bottom: 0 }
-                  : { top: offset, height: size, left: 0, right: 0 }),
-                background: horizontal
-                  ? `linear-gradient(90deg, ${band.accent}, ${band.color})`
-                  : `linear-gradient(180deg, ${band.accent}, ${band.color})`,
-                opacity: dimmed ? 0.25 : isActive || isHovered ? 1 : 0.82,
+                left: `${offset}%`,
+                width: `${size}%`,
+                background: `linear-gradient(90deg, ${band.accent}, ${band.color})`,
+                opacity: dimmed ? 0.28 : isActive || isHovered ? 1 : 0.88,
                 filter:
                   isActive || isHovered
-                    ? "saturate(1.2) brightness(1.05)"
-                    : "saturate(0.9)",
+                    ? "saturate(1.15) brightness(1.04)"
+                    : "saturate(0.92)",
                 zIndex: isHovered || isActive ? 2 : 1,
                 boxShadow: isActive
                   ? "inset 0 0 0 2px rgba(255,255,255,0.55)"
                   : index > 0
-                    ? horizontal
-                      ? "inset 1px 0 0 rgba(255,255,255,0.12)"
-                      : "inset 0 1px 0 rgba(255,255,255,0.12)"
+                    ? "inset 1px 0 0 rgba(255,255,255,0.14)"
                     : undefined,
               }}
               aria-pressed={isActive}
             >
-              {reignTag && showTag && (
-                <span
-                  className={`pointer-events-none absolute font-display text-[9px] font-medium text-white/95 drop-shadow ${
-                    horizontal
-                      ? "inset-x-0 top-1/2 -translate-y-1/2 text-center"
-                      : "inset-x-0 top-1/2 -translate-y-1/2 text-center"
-                  }`}
-                >
-                  {reignTag}
+              {showEraLabels && (
+                <span className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 truncate px-0.5 text-center font-display text-[10px] font-medium leading-none text-white/95 drop-shadow md:text-[11px]">
+                  {band.eraLabel}
                 </span>
               )}
             </button>
@@ -131,50 +102,44 @@ export function EmperorStrip({
         })}
       </div>
 
-      <AnimatePresence>
-        {(hovered || (activeLayouts.length > 0 && !hovered)) &&
-          (() => {
-            const layout = hovered ?? activeLayouts[0];
-            const { band, offset, size } = layout;
-            const mid = offset + size / 2;
-            const isDual = band.id === "yingzong";
-            return (
-              <motion.div
-                key={`tip-${bandKey(band)}`}
-                initial={{ opacity: 0, y: horizontal ? 6 : 0, x: horizontal ? 0 : 6 }}
-                animate={{ opacity: 1, y: 0, x: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className={`pointer-events-none absolute z-40 max-w-[12rem] ${
-                  horizontal
-                    ? "bottom-full mb-2 -translate-x-1/2"
-                    : "left-full ml-2 -translate-y-1/2"
-                }`}
-                style={
-                  horizontal
-                    ? { left: `${mid}%` }
-                    : { top: mid }
-                }
-              >
-                <div className="rounded border border-ink-800/10 bg-ink-900/92 px-2.5 py-1.5 shadow-lg backdrop-blur-sm">
-                  <p className="font-display text-[12px] font-medium text-ink-50">
-                    {isDual ? "明英宗 朱祁镇" : band.displayName}
-                  </p>
-                  <p className="mt-0.5 text-[10px] tabular-nums text-ink-300">
-                    {isDual
-                      ? "正统 / 天顺 · 一人双年号"
-                      : getEmperorDisplayRange(band)}
-                  </p>
-                  {hovered && (
-                    <p className="mt-0.5 text-[10px] text-ink-400">
-                      点击查看血缘树与帝位链
+      {!compact && (
+        <AnimatePresence>
+          {(hovered || (activeLayouts.length > 0 && !hovered)) &&
+            (() => {
+              const layout = hovered ?? activeLayouts[0];
+              const { band, offset, size } = layout;
+              const mid = offset + size / 2;
+              return (
+                <motion.div
+                  key={`tip-${bandKey(band)}`}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="pointer-events-none absolute bottom-full z-40 mb-2 max-w-[12rem] -translate-x-1/2"
+                  style={{ left: `${mid}%` }}
+                >
+                  <div className="rounded border border-ink-800/10 bg-ink-900/92 px-2.5 py-1.5 shadow-lg backdrop-blur-sm">
+                    <p className="font-display text-[12px] font-medium text-ink-50">
+                      {band.eraLabel}
+                      <span className="ml-1.5 text-[11px] font-normal text-ink-300">
+                        {band.displayName.replace(/（复位）/, "")}
+                      </span>
                     </p>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })()}
-      </AnimatePresence>
+                    <p className="mt-0.5 text-[10px] tabular-nums text-ink-300">
+                      {getEmperorDisplayRange(band)}
+                    </p>
+                    {hovered && (
+                      <p className="mt-0.5 text-[10px] text-ink-400">
+                        点击查看血缘树与帝位链
+                      </p>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })()}
+        </AnimatePresence>
+      )}
     </div>
   );
 }

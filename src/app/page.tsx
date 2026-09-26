@@ -139,7 +139,7 @@ export default function HomePage() {
         </AnimatePresence>
       </section>
 
-      <footer className="relative z-20 shrink-0 border-t border-ink-800/10 bg-[rgba(251,249,243,0.92)] backdrop-blur-sm">
+      <footer className="relative z-20 shrink-0">
         <Timeline
           mode={mode}
           onModeChange={setMode}
