@@ -6,18 +6,17 @@ import {
   DYNASTY_YEAR_SPAN,
   getVisibleEvents,
   type ChronicleEvent,
-  type TimelineMode,
 } from "@/data/chronicle-events";
 import {
   EMPEROR_BANDS,
   type EmperorBand,
   type EmperorId,
 } from "@/data/emperors";
+import type { PeriodId } from "@/data/ming-dynasty";
 import type { EventCategory } from "@/data/categories";
 import { EmperorStrip } from "@/components/timeline/EmperorStrip";
 import { EventNode } from "@/components/timeline/EventNode";
-import { ChongzhenCluster } from "@/components/timeline/ChongzhenCluster";
-import { ModeToggle } from "@/components/timeline/ModeToggle";
+import { EraCluster } from "@/components/timeline/EraCluster";
 import {
   CategoryFilter,
   DEFAULT_CATEGORY_VISIBILITY,
@@ -25,105 +24,49 @@ import {
 } from "@/components/EventTag";
 
 interface TimelineProps {
-  mode: TimelineMode;
-  onModeChange: (mode: TimelineMode) => void;
   activeEventId: string | null;
   activeEmperorId: EmperorId | null;
   onSelectEvent: (event: ChronicleEvent) => void;
   onSelectEmperor: (band: EmperorBand) => void;
 }
 
-function yearToPercent(year: number) {
-  const { start, total } = DYNASTY_YEAR_SPAN;
-  return ((year - start) / (total - 1)) * 100;
-}
-
 const LAYOUT = {
-  minGapPct: 5.6,
   edgePad: 3.0,
-  maxRow: 2,
-  /** 估算标签半宽（轨道百分比），用于重叠判定 */
-  labelHalfPct: 3.4,
+  /** 标签最多错落行数（0 起算） */
+  maxRow: 3,
 } as const;
 
 const TRACK = {
-  base: 108,
-  perRow: 28,
-  longTitleBonus: 22,
-  overlapBonus: 26,
-  clusterOpenBonus: 132,
+  /** 含底部年份预留 + 双层簇按钮错落 */
+  collapsed: 108,
+  base: 128,
+  perRow: 30,
+  longTitleBonus: 18,
+  overlapBonus: 20,
 } as const;
 
 type LayoutItem = {
   event: ChronicleEvent;
   leftPercent: number;
   labelRow: number;
-  dimmed: boolean;
 };
 
-function layoutEventNodes(
-  events: ChronicleEvent[],
-  activeEmperorId: EmperorId | null
-): { items: LayoutItem[]; maxRow: number; overlapScore: number; longTitle: boolean } {
-  const sorted = [...events].sort(
-    (a, b) => a.year - b.year || a.id.localeCompare(b.id)
-  );
-  const items: LayoutItem[] = [];
+type EraGroup = {
+  periodId: PeriodId;
+  eraLabel: string;
+  accent: string;
+  /** 示意点位置：色带中点（百分比） */
+  leftPercent: number;
+  /** 色带左右边界，用于约束示意点 */
+  bandStart: number;
+  bandEnd: number;
+  /** 过密时交替抬高标签，示意点仍落在色带内 */
+  stackRow: 0 | 1;
+  events: ChronicleEvent[];
+};
 
-  let lastLeft = -Infinity;
-  let nextRow = 0;
-  let overlapScore = 0;
-  let longTitle = false;
-
-  for (const event of sorted) {
-    if (event.title.length >= 6) longTitle = true;
-
-    let left = yearToPercent(event.year);
-    left = Math.max(LAYOUT.edgePad, Math.min(100 - LAYOUT.edgePad, left));
-
-    const gap = left - lastLeft;
-    const crowded = gap < LAYOUT.minGapPct;
-    const visualOverlap =
-      Number.isFinite(lastLeft) &&
-      gap < LAYOUT.labelHalfPct * 2;
-
-    if (crowded) {
-      left = Math.min(100 - LAYOUT.edgePad, lastLeft + LAYOUT.minGapPct);
-      overlapScore += 1;
-    } else if (visualOverlap) {
-      overlapScore += 1;
-    }
-
-    const labelRow = crowded || visualOverlap ? nextRow : 0;
-    if (crowded || visualOverlap) {
-      nextRow = (nextRow + 1) % (LAYOUT.maxRow + 1);
-    } else {
-      nextRow = 1;
-    }
-
-    items.push({
-      event,
-      leftPercent: left,
-      labelRow,
-      dimmed:
-        activeEmperorId !== null && event.emperorId !== activeEmperorId,
-    });
-    lastLeft = left;
-  }
-
-  const last = items[items.length - 1];
-  if (last && last.leftPercent > 100 - LAYOUT.edgePad) {
-    const first = items[0]?.leftPercent ?? LAYOUT.edgePad;
-    const span = Math.max(1, last.leftPercent - first);
-    for (const item of items) {
-      const t = (item.leftPercent - first) / span;
-      item.leftPercent =
-        LAYOUT.edgePad + t * (100 - LAYOUT.edgePad * 2 - 0.01);
-    }
-  }
-
-  const maxRow = items.reduce((m, it) => Math.max(m, it.labelRow), 0);
-  return { items, maxRow, overlapScore, longTitle };
+function bandKey(band: EmperorBand) {
+  return `${band.id}-${band.startYear}`;
 }
 
 function eventMatchesCategories(
@@ -133,23 +76,86 @@ function eventMatchesCategories(
   return event.categories.some((c) => visibility[c]);
 }
 
-function computeTrackHeight(opts: {
+/** 横向单行标题半宽（轨道百分比），按字数估算 */
+function estimateLabelHalfPct(title: string): number {
+  return Math.min(14, Math.max(3.2, title.length * 0.78));
+}
+
+/** 将所选朝事件放大铺满整条轨道；标题重叠则上下错行 */
+function layoutZoomedEvents(events: ChronicleEvent[]): {
+  items: LayoutItem[];
   maxRow: number;
   overlapScore: number;
   longTitle: boolean;
-  clusterOpen: boolean;
+} {
+  const sorted = [...events].sort(
+    (a, b) => a.year - b.year || a.id.localeCompare(b.id)
+  );
+  if (!sorted.length) {
+    return { items: [], maxRow: 0, overlapScore: 0, longTitle: false };
+  }
+
+  const years = sorted.map((e) => e.year);
+  const minY = Math.min(...years);
+  const maxY = Math.max(...years);
+  const span = Math.max(1, maxY - minY);
+
+  const placed: LayoutItem[] = [];
+  const bands: { left: number; right: number; row: number }[] = [];
+  let overlapScore = 0;
+  let longTitle = false;
+
+  for (const event of sorted) {
+    if (event.title.length >= 6) longTitle = true;
+
+    const leftPercent =
+      sorted.length === 1
+        ? 50
+        : LAYOUT.edgePad +
+          ((event.year - minY) / span) * (100 - LAYOUT.edgePad * 2);
+
+    const half = estimateLabelHalfPct(event.title);
+    const L = leftPercent - half;
+    const R = leftPercent + half;
+
+    let labelRow = 0;
+    while (labelRow <= LAYOUT.maxRow) {
+      const hit = bands.some(
+        (b) => b.row === labelRow && L < b.right && R > b.left
+      );
+      if (!hit) break;
+      labelRow += 1;
+    }
+    if (labelRow > LAYOUT.maxRow) {
+      labelRow = labelRow % (LAYOUT.maxRow + 1);
+      overlapScore += 2;
+    } else if (labelRow > 0) {
+      overlapScore += 1;
+    }
+
+    bands.push({ left: L, right: R, row: labelRow });
+    placed.push({ event, leftPercent, labelRow });
+  }
+
+  const maxRow = placed.reduce((m, it) => Math.max(m, it.labelRow), 0);
+  return { items: placed, maxRow, overlapScore, longTitle };
+}
+
+function computeTrackHeight(opts: {
+  focused: boolean;
+  maxRow: number;
+  overlapScore: number;
+  longTitle: boolean;
   eventCount: number;
 }): number {
+  if (!opts.focused) return TRACK.collapsed;
   let h = TRACK.base + opts.maxRow * TRACK.perRow;
   if (opts.longTitle) h += TRACK.longTitleBonus;
-  if (opts.overlapScore >= 2 || opts.eventCount >= 12) h += TRACK.overlapBonus;
-  if (opts.clusterOpen) h += TRACK.clusterOpenBonus;
+  if (opts.overlapScore >= 2 || opts.eventCount >= 6) h += TRACK.overlapBonus;
   return h;
 }
 
 export function Timeline({
-  mode,
-  onModeChange,
   activeEventId,
   activeEmperorId,
   onSelectEvent,
@@ -157,33 +163,25 @@ export function Timeline({
 }: TimelineProps) {
   const [hoveredBand, setHoveredBand] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
-  const [clusterOpen, setClusterOpen] = useState(false);
+  const [focusedPeriodId, setFocusedPeriodId] = useState<PeriodId | null>(null);
   const [categoryVisibility, setCategoryVisibility] =
     useState<CategoryVisibility>(DEFAULT_CATEGORY_VISIBILITY);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** 展开增高后锁定，忽略因高度变化产生的伪离开 */
+  const expandLockUntil = useRef(0);
+  const pointerPos = useRef({ x: 0, y: 0 });
+  /** 最近一次展开态顶边，用于高度骤降后的邻近判定 */
+  const lastExpandedTop = useRef<number | null>(null);
 
-  const baseEvents = useMemo(() => getVisibleEvents(mode), [mode]);
+  const baseEvents = useMemo(() => getVisibleEvents(), []);
 
   const filtered = useMemo(() => {
-    if (mode !== "core") return baseEvents;
     return baseEvents.filter((e) =>
       eventMatchesCategories(e, categoryVisibility)
     );
-  }, [mode, baseEvents, categoryVisibility]);
-
-  /** 崇祯事件抽出为簇，减轻末段拥挤 */
-  const { axisEvents, chongzhenEvents } = useMemo(() => {
-    if (mode !== "core") {
-      return { axisEvents: filtered, chongzhenEvents: [] as ChronicleEvent[] };
-    }
-    const chongzhen: ChronicleEvent[] = [];
-    const rest: ChronicleEvent[] = [];
-    for (const e of filtered) {
-      if (e.periodId === "chongzhen") chongzhen.push(e);
-      else rest.push(e);
-    }
-    return { axisEvents: rest, chongzhenEvents: chongzhen };
-  }, [mode, filtered]);
+  }, [baseEvents, categoryVisibility]);
 
   const bandLayouts = useMemo(() => {
     const n = EMPEROR_BANDS.length;
@@ -195,41 +193,78 @@ export function Timeline({
     }));
   }, []);
 
-  const { items: positioned, maxRow, overlapScore, longTitle } = useMemo(
-    () => layoutEventNodes(axisEvents, activeEmperorId),
-    [axisEvents, activeEmperorId]
+  /** 按年号建簇：示意点严格落在对应色带内（取色带中点） */
+  const eraGroups = useMemo((): EraGroup[] => {
+    const byPeriod = new Map<PeriodId, ChronicleEvent[]>();
+    for (const e of filtered) {
+      const list = byPeriod.get(e.periodId) ?? [];
+      list.push(e);
+      byPeriod.set(e.periodId, list);
+    }
+
+    const groups: EraGroup[] = [];
+    for (const { band, offset, size } of bandLayouts) {
+      const periodId = band.periodIds[0];
+      const events = byPeriod.get(periodId);
+      if (!events?.length) continue;
+      const bandStart = offset;
+      const bandEnd = offset + size;
+      // 示意点锚定色带中点，绝不挪出色带
+      const leftPercent = (bandStart + bandEnd) / 2;
+      groups.push({
+        periodId,
+        eraLabel: band.eraLabel,
+        accent: band.accent,
+        leftPercent,
+        bandStart,
+        bandEnd,
+        stackRow: 0,
+        events: events.slice().sort((a, b) => a.year - b.year),
+      });
+    }
+
+    // 相邻过近时仅错落标签高度，不改动横向（保证点仍在色带内）
+    const overlapThresh = 6.5;
+    for (let i = 1; i < groups.length; i++) {
+      if (groups[i]!.leftPercent - groups[i - 1]!.leftPercent < overlapThresh) {
+        groups[i]!.stackRow = groups[i - 1]!.stackRow === 0 ? 1 : 0;
+      }
+    }
+    return groups;
+  }, [filtered, bandLayouts]);
+
+  const focusedGroup = useMemo(
+    () => eraGroups.find((g) => g.periodId === focusedPeriodId) ?? null,
+    [eraGroups, focusedPeriodId]
+  );
+
+  const { items: zoomedItems, maxRow, overlapScore, longTitle } = useMemo(
+    () =>
+      focusedGroup
+        ? layoutZoomedEvents(focusedGroup.events)
+        : { items: [], maxRow: 0, overlapScore: 0, longTitle: false },
+    [focusedGroup]
   );
 
   const trackHeight = useMemo(
     () =>
       computeTrackHeight({
+        focused: Boolean(focusedGroup),
         maxRow,
         overlapScore,
         longTitle,
-        clusterOpen: clusterOpen && chongzhenEvents.length > 0,
-        eventCount: axisEvents.length + (chongzhenEvents.length > 0 ? 1 : 0),
+        eventCount: focusedGroup?.events.length ?? 0,
       }),
-    [
-      maxRow,
-      overlapScore,
-      longTitle,
-      clusterOpen,
-      chongzhenEvents.length,
-      axisEvents.length,
-    ]
+    [focusedGroup, maxRow, overlapScore, longTitle]
   );
 
-  const showEvents = mode === "core";
   const visibleCount = filtered.length;
-  const clusterLeft =
-    chongzhenEvents.length > 0
-      ? yearToPercent(
-          Math.round(
-            chongzhenEvents.reduce((s, e) => s + e.year, 0) /
-              chongzhenEvents.length
-          )
-        )
-      : 94;
+  const yearHint = focusedGroup
+    ? `${focusedGroup.events[0]?.year ?? DYNASTY_YEAR_SPAN.start} — ${
+        focusedGroup.events[focusedGroup.events.length - 1]?.year ??
+        DYNASTY_YEAR_SPAN.end
+      }`
+    : "1368 — 1644";
 
   const toggleCategory = (category: EventCategory) => {
     setCategoryVisibility((prev) => {
@@ -246,30 +281,159 @@ export function Timeline({
     }
   };
 
-  const handleEnter = () => {
+  const clearFocusLeave = () => {
+    if (focusLeaveTimer.current) {
+      clearTimeout(focusLeaveTimer.current);
+      focusLeaveTimer.current = null;
+    }
+  };
+
+  const lockExpanded = (ms = 700) => {
+    expandLockUntil.current = Date.now() + ms;
     clearLeaveTimer();
     setExpanded(true);
   };
 
-  const handleLeave = () => {
+  const handleEnter = () => {
     clearLeaveTimer();
-    leaveTimer.current = setTimeout(() => {
-      setExpanded(false);
-      setClusterOpen(false);
-    }, 180);
+    setExpanded(true);
+    requestAnimationFrame(() => {
+      const top = rootRef.current?.getBoundingClientRect().top;
+      if (top != null) {
+        lastExpandedTop.current =
+          lastExpandedTop.current == null
+            ? top
+            : Math.min(lastExpandedTop.current, top);
+      }
+    });
   };
 
-  useEffect(() => () => clearLeaveTimer(), []);
+  const tryCollapse = () => {
+    if (Date.now() < expandLockUntil.current) {
+      leaveTimer.current = setTimeout(tryCollapse, 100);
+      return;
+    }
+
+    const el = rootRef.current;
+    const { x, y } = pointerPos.current;
+    const under = document.elementFromPoint(x, y);
+    if (el && under && el.contains(under)) {
+      // 指针已回到轴内（含上沿缓冲层）
+      return;
+    }
+
+    // 切模式后高度骤降：在宽限期内落在旧顶边幽灵区则继续等待
+    const rect = el?.getBoundingClientRect();
+    const ghostTop = lastExpandedTop.current;
+    if (
+      rect &&
+      ghostTop != null &&
+      Date.now() <= expandLockUntil.current + 500
+    ) {
+      const pad = 8;
+      const inGhost =
+        x >= rect.left - pad &&
+        x <= rect.right + pad &&
+        y >= ghostTop - 8 &&
+        y <= rect.bottom + pad;
+      if (inGhost) {
+        leaveTimer.current = setTimeout(tryCollapse, 160);
+        return;
+      }
+    }
+
+    setExpanded(false);
+    setFocusedPeriodId(null);
+    lastExpandedTop.current = null;
+  };
+
+  const handleLeave = () => {
+    clearLeaveTimer();
+    leaveTimer.current = setTimeout(tryCollapse, 3000);
+  };
+
+  /** 仅负责进入某朝；离开由轨道/整轴统一处理，避免簇卸载误清焦点 */
+  const focusEra = (periodId: PeriodId) => {
+    clearFocusLeave();
+    lockExpanded(500);
+    setFocusedPeriodId(periodId);
+    requestAnimationFrame(() => {
+      const top = rootRef.current?.getBoundingClientRect().top;
+      if (top != null) lastExpandedTop.current = top;
+    });
+  };
+
+  const scheduleClearEraFocus = () => {
+    clearFocusLeave();
+    focusLeaveTimer.current = setTimeout(() => {
+      setFocusedPeriodId(null);
+    }, 320);
+  };
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      pointerPos.current = { x: e.clientX, y: e.clientY };
+      if (!expanded) return;
+      const top = rootRef.current?.getBoundingClientRect().top;
+      if (top == null) return;
+      // 只在变高（顶边上移）时更新，保留切模式前的较高顶边作邻近区
+      if (
+        lastExpandedTop.current == null ||
+        top < lastExpandedTop.current
+      ) {
+        lastExpandedTop.current = top;
+      }
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => window.removeEventListener("pointermove", onMove);
+  }, [expanded]);
+
+  /** 在时间轴外点击：立刻收回（不等待悬停离开延迟） */
+  useEffect(() => {
+    if (!expanded) return;
+
+    const onPointerDown = (e: PointerEvent) => {
+      const el = rootRef.current;
+      if (!el) return;
+      const target = e.target as Node | null;
+      if (target && el.contains(target)) return;
+
+      clearLeaveTimer();
+      clearFocusLeave();
+      expandLockUntil.current = 0;
+      setExpanded(false);
+      setFocusedPeriodId(null);
+      lastExpandedTop.current = null;
+    };
+
+    // 捕获阶段，避免被内部 stopPropagation 挡住
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () =>
+      document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [expanded]);
+
+  useEffect(
+    () => () => {
+      clearLeaveTimer();
+      clearFocusLeave();
+    },
+    []
+  );
 
   return (
     <motion.div
-      className="overflow-hidden border-t border-ink-800/10 bg-[rgba(251,249,243,0.94)] backdrop-blur-sm"
+      ref={rootRef}
+      className="relative overflow-hidden border-t border-ink-800/10 bg-[rgba(251,249,243,0.94)] backdrop-blur-sm"
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
       onFocusCapture={handleEnter}
-      layout
       transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
     >
+      {/* 上沿视觉邻近区：不拦截点击，轴外点击可立刻收回 */}
+      <div
+        className="pointer-events-none absolute inset-x-0 -top-40 h-40"
+        aria-hidden
+      />
       <motion.div
         className="px-4 md:px-6"
         animate={{
@@ -288,86 +452,118 @@ export function Timeline({
               transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
               className="overflow-hidden"
             >
-              <div className="mb-2 space-y-2">
-                <ModeToggle mode={mode} onModeChange={onModeChange} />
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  {showEvents ? (
-                    <CategoryFilter
-                      visibility={categoryVisibility}
-                      onToggle={toggleCategory}
-                    />
-                  ) : (
-                    <p className="text-[11px] text-ink-400">
-                      年号等分排列 · 点击色块打开谱系
-                    </p>
-                  )}
-                  <p className="font-display text-[10px] tracking-widest text-ink-300">
-                    {showEvents
-                      ? `显示 ${visibleCount} 节点 · 1368 — 1644`
-                      : "1368 — 1644"}
+              <div className="mb-2 flex min-h-10 flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="font-display text-[10px] tracking-[0.25em] text-ink-400">
+                    核心主线
                   </p>
+                  <CategoryFilter
+                    visibility={categoryVisibility}
+                    onToggle={toggleCategory}
+                  />
                 </div>
+                <p className="font-display text-[10px] tracking-widest text-ink-300">
+                  {focusedGroup
+                    ? `${focusedGroup.eraLabel} · ${focusedGroup.events.length} 事 · ${yearHint}`
+                    : `各朝缩略 · ${visibleCount} 事 · 点击年号展开`}
+                </p>
               </div>
 
-              {showEvents && (
-                <motion.nav
-                  className="relative mb-3 w-full"
-                  aria-label="核心主线事件"
-                  animate={{ height: trackHeight }}
-                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  <div
-                    className="pointer-events-none absolute bottom-1.5 left-0 right-0 h-px bg-gradient-to-r from-cinnabar/35 via-ink-400/25 to-ink-300/20"
-                    aria-hidden
-                  />
-                  <span className="pointer-events-none absolute bottom-0 left-0 text-[9px] tabular-nums text-ink-300">
-                    1368
-                  </span>
-                  <span className="pointer-events-none absolute bottom-0 right-0 text-[9px] tabular-nums text-ink-300">
-                    1644
-                  </span>
+              <motion.nav
+                className="relative mb-3 w-full"
+                aria-label="核心主线事件"
+                animate={{ height: trackHeight }}
+                transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                onMouseEnter={clearFocusLeave}
+                onMouseLeave={scheduleClearEraFocus}
+              >
+                <div
+                  className="pointer-events-none absolute bottom-4 left-0 right-0 h-px bg-gradient-to-r from-cinnabar/35 via-ink-400/25 to-ink-300/20"
+                  aria-hidden
+                />
+                <span className="pointer-events-none absolute bottom-0 left-0 text-[9px] leading-none tabular-nums text-ink-300">
+                  {focusedGroup
+                    ? focusedGroup.events[0]?.year ?? 1368
+                    : 1368}
+                </span>
+                <span className="pointer-events-none absolute bottom-0 right-0 text-[9px] leading-none tabular-nums text-ink-300">
+                  {focusedGroup
+                    ? focusedGroup.events[focusedGroup.events.length - 1]
+                        ?.year ?? 1644
+                    : 1644}
+                </span>
 
+                <div className="absolute inset-x-0 top-0 bottom-4">
                   {visibleCount === 0 ? (
                     <p className="absolute inset-0 flex items-center justify-center text-[11px] text-ink-400">
                       请至少开启一类事件筛选
                     </p>
                   ) : (
-                    <>
-                      <AnimatePresence mode="popLayout">
-                        {positioned.map(
-                          ({ event, leftPercent, labelRow, dimmed }) => (
-                            <EventNode
-                              key={event.id}
-                              event={event}
-                              leftPercent={leftPercent}
-                              labelRow={labelRow}
-                              isActive={activeEventId === event.id}
-                              dimmed={dimmed}
-                              onSelect={onSelectEvent}
-                            />
-                          )
-                        )}
-                      </AnimatePresence>
-
-                      {chongzhenEvents.length > 0 && (
-                        <ChongzhenCluster
-                          events={chongzhenEvents}
-                          leftPercent={Math.max(88, Math.min(96, clusterLeft))}
-                          activeEventId={activeEventId}
-                          onSelect={onSelectEvent}
-                          onOpenChange={setClusterOpen}
-                        />
+                    <AnimatePresence mode="wait">
+                      {focusedGroup ? (
+                        <motion.div
+                          key={`zoom-${focusedGroup.periodId}`}
+                          className="absolute inset-0"
+                          initial={{ opacity: 0, scale: 0.96 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.98 }}
+                          transition={{
+                            duration: 0.36,
+                            ease: [0.22, 1, 0.36, 1],
+                          }}
+                        >
+                          <AnimatePresence mode="popLayout">
+                            {zoomedItems.map(
+                              ({ event, leftPercent, labelRow }) => (
+                                <EventNode
+                                  key={event.id}
+                                  event={event}
+                                  leftPercent={leftPercent}
+                                  labelRow={labelRow}
+                                  isActive={activeEventId === event.id}
+                                  onSelect={onSelectEvent}
+                                />
+                              )
+                            )}
+                          </AnimatePresence>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="era-clusters"
+                          className="absolute inset-0"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{
+                            duration: 0.28,
+                            ease: [0.22, 1, 0.36, 1],
+                          }}
+                        >
+                          {eraGroups.map((group) => {
+                            const hasActive = group.events.some(
+                              (e) => e.id === activeEventId
+                            );
+                            return (
+                              <EraCluster
+                                key={group.periodId}
+                                eraLabel={group.eraLabel}
+                                count={group.events.length}
+                                leftPercent={group.leftPercent}
+                                bandStart={group.bandStart}
+                                bandEnd={group.bandEnd}
+                                stackRow={group.stackRow}
+                                accent={group.accent}
+                                isActive={hasActive}
+                                onSelect={() => focusEra(group.periodId)}
+                              />
+                            );
+                          })}
+                        </motion.div>
                       )}
-                    </>
+                    </AnimatePresence>
                   )}
-                </motion.nav>
-              )}
-
-              {!showEvents && (
-                <p className="mb-2 text-center text-[10px] text-ink-400">
-                  编年史 · 十六帝十七朝年号
-                </p>
-              )}
+                </div>
+              </motion.nav>
             </motion.div>
           )}
         </AnimatePresence>

@@ -5,17 +5,11 @@ import type { PeriodId } from "./ming-dynasty";
 /**
  * 全朝代编年事件
  * - turning：核心主线大节点
- * - major：重要事件（已并入核心主线展示）
+ * - major：重要事件（并入时间轴展示）
  * - minor：细节年份（仅时期面板详情，不进入时间轴）
- *
- * 时间轴模式：
- * - core：展示 turning + major
- * - chronicle：仅皇帝更替色带，不展示事件节点
  */
 
 export type EventWeight = "turning" | "major" | "minor";
-
-export type TimelineMode = "core" | "chronicle";
 
 export interface ChronicleEvent {
   id: string;
@@ -410,10 +404,8 @@ export const DYNASTY_YEAR_SPAN = {
   total: 1644 - 1368 + 1,
 };
 
-/** 按时间轴模式过滤可见事件（编年史模式不展示事件节点） */
-export function getVisibleEvents(mode: TimelineMode): ChronicleEvent[] {
-  if (mode === "chronicle") return [];
-  // 核心主线：原转折点 + 原编年史重要事件
+/** 时间轴可见事件（不含 minor） */
+export function getVisibleEvents(): ChronicleEvent[] {
   return CHRONICLE_EVENTS.filter((e) => e.weight !== "minor");
 }
 

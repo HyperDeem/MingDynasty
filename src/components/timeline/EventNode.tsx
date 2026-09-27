@@ -8,15 +8,15 @@ interface EventNodeProps {
   event: ChronicleEvent;
   /** 横向位置：0–100% */
   leftPercent: number;
-  /** 标签行：0 贴近轴，数字越大越靠上 */
+  /** 标签行：0 贴近轴，数字越大越靠上（重叠时错开） */
   labelRow: number;
   isActive: boolean;
   dimmed?: boolean;
   onSelect: (event: ChronicleEvent) => void;
 }
 
-/** 各行标签距点的上移量（px），行距加大避免互压 */
-const ROW_OFFSET_PX = [14, 40, 66] as const;
+/** 各行标签距点的上移量（px） */
+const ROW_OFFSET_PX = [16, 44, 72, 100] as const;
 
 export function EventNode({
   event,
@@ -53,11 +53,12 @@ export function EventNode({
       disabled={dimmed}
     >
       <span className="relative flex flex-col items-center">
+        {/* 横向单行标题；行高由 labelRow 错开 */}
         <span
-          className={`absolute bottom-full text-center font-display leading-tight ${
+          className={`absolute bottom-full whitespace-nowrap text-center font-display leading-none ${
             isTurning
-              ? "max-w-[5.2rem] text-[10px] font-semibold text-ink-900 md:max-w-[6.5rem] md:text-[11px]"
-              : "max-w-[4.8rem] text-[10px] font-medium text-ink-700 md:max-w-[6rem]"
+              ? "text-[10px] font-semibold text-ink-900 md:text-[11px]"
+              : "text-[10px] font-medium text-ink-700 md:text-[11px]"
           } ${isActive ? "!text-cinnabar" : ""}`}
           style={{ marginBottom: ROW_OFFSET_PX[row] }}
         >

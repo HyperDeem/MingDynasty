@@ -7,10 +7,7 @@ import {
   getPeriodById,
   type PeriodId,
 } from "@/data/ming-dynasty";
-import {
-  type ChronicleEvent,
-  type TimelineMode,
-} from "@/data/chronicle-events";
+import { type ChronicleEvent } from "@/data/chronicle-events";
 import type { EmperorBand, EmperorId } from "@/data/emperors";
 import { getDefaultPeriodForEmperor } from "@/data/lineage";
 import { Timeline } from "@/components/Timeline";
@@ -28,7 +25,6 @@ function yearFromPeriod(periodId: PeriodId): number {
 }
 
 export default function HomePage() {
-  const [mode, setMode] = useState<TimelineMode>("core");
   const [rightView, setRightView] = useState<RightView>({
     kind: "period",
     periodId: DYNASTY_META.defaultPeriodId,
@@ -141,8 +137,6 @@ export default function HomePage() {
 
       <footer className="relative z-20 shrink-0">
         <Timeline
-          mode={mode}
-          onModeChange={setMode}
           activeEventId={activeEventId}
           activeEmperorId={activeEmperorId}
           onSelectEvent={handleSelectEvent}

@@ -237,8 +237,8 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "崇祯",
     startYear: 1628,
     endYear: 1644,
-    color: "#3d2a2a",
-    accent: "#6b4545",
+    color: "#5a3a3a",
+    accent: "#8a5a5a",
     periodIds: ["chongzhen"],
   },
 ];
