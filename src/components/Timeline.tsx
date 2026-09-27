@@ -16,6 +16,7 @@ import {
 import type { EventCategory } from "@/data/categories";
 import { EmperorStrip } from "@/components/timeline/EmperorStrip";
 import { EventNode } from "@/components/timeline/EventNode";
+import { ChongzhenCluster } from "@/components/timeline/ChongzhenCluster";
 import { ModeToggle } from "@/components/timeline/ModeToggle";
 import {
   CategoryFilter,
@@ -37,46 +38,64 @@ function yearToPercent(year: number) {
   return ((year - start) / (total - 1)) * 100;
 }
 
-/**
- * 可读性排布参数：
- * - minGapPct：相邻节点最小横向间距（占轨道百分比）
- * - edgePad：左右边距，避免贴边裁切
- * - 邻近节点轮换 3 行标签高度，减少文字重叠
- */
 const LAYOUT = {
-  minGapPct: 5.2,
-  edgePad: 2.8,
+  minGapPct: 5.6,
+  edgePad: 3.0,
   maxRow: 2,
+  /** 估算标签半宽（轨道百分比），用于重叠判定 */
+  labelHalfPct: 3.4,
 } as const;
+
+const TRACK = {
+  base: 108,
+  perRow: 28,
+  longTitleBonus: 22,
+  overlapBonus: 26,
+  clusterOpenBonus: 132,
+} as const;
+
+type LayoutItem = {
+  event: ChronicleEvent;
+  leftPercent: number;
+  labelRow: number;
+  dimmed: boolean;
+};
 
 function layoutEventNodes(
   events: ChronicleEvent[],
   activeEmperorId: EmperorId | null
-) {
+): { items: LayoutItem[]; maxRow: number; overlapScore: number; longTitle: boolean } {
   const sorted = [...events].sort(
     (a, b) => a.year - b.year || a.id.localeCompare(b.id)
   );
-  const items: {
-    event: ChronicleEvent;
-    leftPercent: number;
-    labelRow: number;
-    dimmed: boolean;
-  }[] = [];
+  const items: LayoutItem[] = [];
 
   let lastLeft = -Infinity;
   let nextRow = 0;
+  let overlapScore = 0;
+  let longTitle = false;
 
   for (const event of sorted) {
+    if (event.title.length >= 6) longTitle = true;
+
     let left = yearToPercent(event.year);
     left = Math.max(LAYOUT.edgePad, Math.min(100 - LAYOUT.edgePad, left));
 
-    const crowded = left - lastLeft < LAYOUT.minGapPct;
+    const gap = left - lastLeft;
+    const crowded = gap < LAYOUT.minGapPct;
+    const visualOverlap =
+      Number.isFinite(lastLeft) &&
+      gap < LAYOUT.labelHalfPct * 2;
+
     if (crowded) {
       left = Math.min(100 - LAYOUT.edgePad, lastLeft + LAYOUT.minGapPct);
+      overlapScore += 1;
+    } else if (visualOverlap) {
+      overlapScore += 1;
     }
 
-    const labelRow = crowded ? nextRow : 0;
-    if (crowded) {
+    const labelRow = crowded || visualOverlap ? nextRow : 0;
+    if (crowded || visualOverlap) {
       nextRow = (nextRow + 1) % (LAYOUT.maxRow + 1);
     } else {
       nextRow = 1;
@@ -92,10 +111,8 @@ function layoutEventNodes(
     lastLeft = left;
   }
 
-  // 若整体被挤出右边界，整体略微压缩回可显示区间
   const last = items[items.length - 1];
   if (last && last.leftPercent > 100 - LAYOUT.edgePad) {
-    const overflow = last.leftPercent - (100 - LAYOUT.edgePad);
     const first = items[0]?.leftPercent ?? LAYOUT.edgePad;
     const span = Math.max(1, last.leftPercent - first);
     for (const item of items) {
@@ -105,7 +122,8 @@ function layoutEventNodes(
     }
   }
 
-  return items;
+  const maxRow = items.reduce((m, it) => Math.max(m, it.labelRow), 0);
+  return { items, maxRow, overlapScore, longTitle };
 }
 
 function eventMatchesCategories(
@@ -113,6 +131,20 @@ function eventMatchesCategories(
   visibility: CategoryVisibility
 ): boolean {
   return event.categories.some((c) => visibility[c]);
+}
+
+function computeTrackHeight(opts: {
+  maxRow: number;
+  overlapScore: number;
+  longTitle: boolean;
+  clusterOpen: boolean;
+  eventCount: number;
+}): number {
+  let h = TRACK.base + opts.maxRow * TRACK.perRow;
+  if (opts.longTitle) h += TRACK.longTitleBonus;
+  if (opts.overlapScore >= 2 || opts.eventCount >= 12) h += TRACK.overlapBonus;
+  if (opts.clusterOpen) h += TRACK.clusterOpenBonus;
+  return h;
 }
 
 export function Timeline({
@@ -125,18 +157,33 @@ export function Timeline({
 }: TimelineProps) {
   const [hoveredBand, setHoveredBand] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [clusterOpen, setClusterOpen] = useState(false);
   const [categoryVisibility, setCategoryVisibility] =
     useState<CategoryVisibility>(DEFAULT_CATEGORY_VISIBILITY);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const baseEvents = useMemo(() => getVisibleEvents(mode), [mode]);
 
-  const events = useMemo(() => {
+  const filtered = useMemo(() => {
     if (mode !== "core") return baseEvents;
     return baseEvents.filter((e) =>
       eventMatchesCategories(e, categoryVisibility)
     );
   }, [mode, baseEvents, categoryVisibility]);
+
+  /** 崇祯事件抽出为簇，减轻末段拥挤 */
+  const { axisEvents, chongzhenEvents } = useMemo(() => {
+    if (mode !== "core") {
+      return { axisEvents: filtered, chongzhenEvents: [] as ChronicleEvent[] };
+    }
+    const chongzhen: ChronicleEvent[] = [];
+    const rest: ChronicleEvent[] = [];
+    for (const e of filtered) {
+      if (e.periodId === "chongzhen") chongzhen.push(e);
+      else rest.push(e);
+    }
+    return { axisEvents: rest, chongzhenEvents: chongzhen };
+  }, [mode, filtered]);
 
   const bandLayouts = useMemo(() => {
     const n = EMPEROR_BANDS.length;
@@ -148,18 +195,45 @@ export function Timeline({
     }));
   }, []);
 
-  const positioned = useMemo(
-    () => layoutEventNodes(events, activeEmperorId),
-    [events, activeEmperorId]
+  const { items: positioned, maxRow, overlapScore, longTitle } = useMemo(
+    () => layoutEventNodes(axisEvents, activeEmperorId),
+    [axisEvents, activeEmperorId]
+  );
+
+  const trackHeight = useMemo(
+    () =>
+      computeTrackHeight({
+        maxRow,
+        overlapScore,
+        longTitle,
+        clusterOpen: clusterOpen && chongzhenEvents.length > 0,
+        eventCount: axisEvents.length + (chongzhenEvents.length > 0 ? 1 : 0),
+      }),
+    [
+      maxRow,
+      overlapScore,
+      longTitle,
+      clusterOpen,
+      chongzhenEvents.length,
+      axisEvents.length,
+    ]
   );
 
   const showEvents = mode === "core";
-  const visibleCount = events.length;
+  const visibleCount = filtered.length;
+  const clusterLeft =
+    chongzhenEvents.length > 0
+      ? yearToPercent(
+          Math.round(
+            chongzhenEvents.reduce((s, e) => s + e.year, 0) /
+              chongzhenEvents.length
+          )
+        )
+      : 94;
 
   const toggleCategory = (category: EventCategory) => {
     setCategoryVisibility((prev) => {
       const next = { ...prev, [category]: !prev[category] };
-      // 至少保留一类开启，避免整条轴空白
       if (!Object.values(next).some(Boolean)) return prev;
       return next;
     });
@@ -179,7 +253,10 @@ export function Timeline({
 
   const handleLeave = () => {
     clearLeaveTimer();
-    leaveTimer.current = setTimeout(() => setExpanded(false), 180);
+    leaveTimer.current = setTimeout(() => {
+      setExpanded(false);
+      setClusterOpen(false);
+    }, 180);
   };
 
   useEffect(() => () => clearLeaveTimer(), []);
@@ -233,9 +310,11 @@ export function Timeline({
               </div>
 
               {showEvents && (
-                <nav
-                  className="relative mb-3 h-[9.5rem] w-full md:h-[10.5rem]"
+                <motion.nav
+                  className="relative mb-3 w-full"
                   aria-label="核心主线事件"
+                  animate={{ height: trackHeight }}
+                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                 >
                   <div
                     className="pointer-events-none absolute bottom-1.5 left-0 right-0 h-px bg-gradient-to-r from-cinnabar/35 via-ink-400/25 to-ink-300/20"
@@ -253,23 +332,35 @@ export function Timeline({
                       请至少开启一类事件筛选
                     </p>
                   ) : (
-                    <AnimatePresence mode="popLayout">
-                      {positioned.map(
-                        ({ event, leftPercent, labelRow, dimmed }) => (
-                          <EventNode
-                            key={event.id}
-                            event={event}
-                            leftPercent={leftPercent}
-                            labelRow={labelRow}
-                            isActive={activeEventId === event.id}
-                            dimmed={dimmed}
-                            onSelect={onSelectEvent}
-                          />
-                        )
+                    <>
+                      <AnimatePresence mode="popLayout">
+                        {positioned.map(
+                          ({ event, leftPercent, labelRow, dimmed }) => (
+                            <EventNode
+                              key={event.id}
+                              event={event}
+                              leftPercent={leftPercent}
+                              labelRow={labelRow}
+                              isActive={activeEventId === event.id}
+                              dimmed={dimmed}
+                              onSelect={onSelectEvent}
+                            />
+                          )
+                        )}
+                      </AnimatePresence>
+
+                      {chongzhenEvents.length > 0 && (
+                        <ChongzhenCluster
+                          events={chongzhenEvents}
+                          leftPercent={Math.max(88, Math.min(96, clusterLeft))}
+                          activeEventId={activeEventId}
+                          onSelect={onSelectEvent}
+                          onOpenChange={setClusterOpen}
+                        />
                       )}
-                    </AnimatePresence>
+                    </>
                   )}
-                </nav>
+                </motion.nav>
               )}
 
               {!showEvents && (
