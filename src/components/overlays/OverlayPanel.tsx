@@ -15,7 +15,7 @@ interface OverlayPanelProps {
 }
 
 /**
- * 地图舞台上的轻量浮层：Esc / 关闭按钮收起
+ * 地图舞台上的轻量浮层：Esc / 关闭按钮收起；内容区撑满卡片高度
  */
 export function OverlayPanel({
   open,
@@ -49,18 +49,18 @@ export function OverlayPanel({
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: fromX * 0.6 }}
           transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-          className={`absolute bottom-3 top-3 z-30 flex w-[min(100%-1.5rem,26rem)] flex-col overflow-hidden rounded-md border border-ink-800/12 bg-[rgba(251,249,243,0.96)] shadow-[0_12px_40px_-16px_rgba(48,42,28,0.35)] backdrop-blur-md md:w-[min(42vw,28rem)] ${
+          className={`absolute bottom-3 top-3 z-30 flex w-[min(100%-1.5rem,26rem)] flex-col overflow-hidden rounded-md border border-ink-800/12 bg-[rgba(251,249,243,0.96)] shadow-[0_12px_40px_-16px_rgba(48,42,28,0.35)] backdrop-blur-md md:w-[min(44vw,30rem)] lg:w-[min(40vw,32rem)] ${
             side === "right" ? "right-3" : "left-3"
           } ${className}`}
         >
-          <header className="flex shrink-0 items-start justify-between gap-3 border-b border-ink-800/10 px-4 py-3">
+          <header className="flex shrink-0 items-start justify-between gap-3 border-b border-ink-800/10 px-3 py-2.5 md:px-4 md:py-3">
             <div className="min-w-0">
               {eyebrow && (
-                <p className="font-display text-[10px] tracking-[0.28em] text-cinnabar">
+                <p className="font-display text-[10px] tracking-[0.28em] text-cinnabar md:tracking-[0.32em]">
                   {eyebrow}
                 </p>
               )}
-              <h2 className="mt-0.5 font-display text-lg font-bold text-ink-900">
+              <h2 className="mt-0.5 font-display text-base font-bold text-ink-900 md:text-lg lg:text-xl">
                 {title}
               </h2>
             </div>
@@ -72,7 +72,7 @@ export function OverlayPanel({
               关闭
             </button>
           </header>
-          <div className="min-h-0 flex-1 overflow-y-auto scrollbar-timeline">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {children}
           </div>
         </motion.aside>

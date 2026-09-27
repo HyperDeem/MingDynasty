@@ -165,6 +165,8 @@ export function Timeline({
   onSelectEra,
 }: TimelineProps) {
   const [hoveredBand, setHoveredBand] = useState<string | null>(null);
+  /** 悬停提示（不展开）；点击后才真正展开 */
+  const [hinted, setHinted] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [focusedPeriodId, setFocusedPeriodId] = useState<PeriodId | null>(null);
   const [categoryVisibility, setCategoryVisibility] =
@@ -294,24 +296,35 @@ export function Timeline({
   const lockExpanded = (ms = 700) => {
     expandLockUntil.current = Date.now() + ms;
     clearLeaveTimer();
+    setHinted(false);
     setExpanded(true);
   };
 
-  const handleEnter = () => {
+  const expandTimeline = () => {
     clearLeaveTimer();
+    setHinted(false);
     setExpanded(true);
     requestAnimationFrame(() => {
       const top = rootRef.current?.getBoundingClientRect().top;
-      if (top != null) {
-        lastExpandedTop.current =
-          lastExpandedTop.current == null
-            ? top
-            : Math.min(lastExpandedTop.current, top);
-      }
+      if (top != null) lastExpandedTop.current = top;
     });
   };
 
+  const collapseTimeline = () => {
+    clearLeaveTimer();
+    clearFocusLeave();
+    expandLockUntil.current = 0;
+    setExpanded(false);
+    setHinted(false);
+    setFocusedPeriodId(null);
+    lastExpandedTop.current = null;
+  };
+
   const tryCollapse = () => {
+    if (!expanded) {
+      setHinted(false);
+      return;
+    }
     if (Date.now() < expandLockUntil.current) {
       leaveTimer.current = setTimeout(tryCollapse, 100);
       return;
@@ -320,12 +333,8 @@ export function Timeline({
     const el = rootRef.current;
     const { x, y } = pointerPos.current;
     const under = document.elementFromPoint(x, y);
-    if (el && under && el.contains(under)) {
-      // 指针已回到轴内（含上沿缓冲层）
-      return;
-    }
+    if (el && under && el.contains(under)) return;
 
-    // 切模式后高度骤降：在宽限期内落在旧顶边幽灵区则继续等待
     const rect = el?.getBoundingClientRect();
     const ghostTop = lastExpandedTop.current;
     if (
@@ -345,13 +354,20 @@ export function Timeline({
       }
     }
 
-    setExpanded(false);
-    setFocusedPeriodId(null);
-    lastExpandedTop.current = null;
+    collapseTimeline();
+  };
+
+  const handleEnter = () => {
+    clearLeaveTimer();
+    if (!expanded) setHinted(true);
   };
 
   const handleLeave = () => {
     clearLeaveTimer();
+    if (!expanded) {
+      setHinted(false);
+      return;
+    }
     leaveTimer.current = setTimeout(tryCollapse, 3000);
   };
 
@@ -401,16 +417,9 @@ export function Timeline({
       if (!el) return;
       const target = e.target as Node | null;
       if (target && el.contains(target)) return;
-
-      clearLeaveTimer();
-      clearFocusLeave();
-      expandLockUntil.current = 0;
-      setExpanded(false);
-      setFocusedPeriodId(null);
-      lastExpandedTop.current = null;
+      collapseTimeline();
     };
 
-    // 捕获阶段，避免被内部 stopPropagation 挡住
     document.addEventListener("pointerdown", onPointerDown, true);
     return () =>
       document.removeEventListener("pointerdown", onPointerDown, true);
@@ -427,13 +436,34 @@ export function Timeline({
   return (
     <motion.div
       ref={rootRef}
-      className="relative overflow-hidden border-t border-ink-800/10 bg-[rgba(251,249,243,0.94)] backdrop-blur-sm"
+      role="button"
+      tabIndex={0}
+      aria-expanded={expanded}
+      aria-label={expanded ? "时间轴已展开" : "时间轴，点击展开"}
+      className="relative cursor-pointer overflow-hidden border-t border-ink-800/10 bg-[rgba(251,249,243,0.94)] backdrop-blur-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cinnabar/35"
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
-      onFocusCapture={handleEnter}
-      transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+      onClick={(e) => {
+        if (expanded) return;
+        // 色带/按钮自身点击另有逻辑；空白处点击展开
+        const t = e.target as HTMLElement;
+        if (t.closest("button, a, input, [role='button']")) return;
+        expandTimeline();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          if (!expanded) expandTimeline();
+        }
+      }}
+      animate={{
+        y: !expanded && hinted ? -4 : 0,
+        boxShadow: !expanded && hinted
+          ? "0 -6px 20px -8px rgba(48,42,28,0.18)"
+          : "0 0 0 0 rgba(0,0,0,0)",
+      }}
+      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
     >
-      {/* 上沿视觉邻近区：不拦截点击，轴外点击可立刻收回 */}
       <div
         className="pointer-events-none absolute inset-x-0 -top-40 h-40"
         aria-hidden
@@ -441,10 +471,10 @@ export function Timeline({
       <motion.div
         className="px-4 md:px-6"
         animate={{
-          paddingTop: expanded ? 10 : 6,
-          paddingBottom: expanded ? 12 : 6,
+          paddingTop: expanded ? 10 : hinted ? 8 : 6,
+          paddingBottom: expanded ? 12 : hinted ? 9 : 6,
         }}
-        transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
       >
         <AnimatePresence initial={false}>
           {expanded && (
@@ -572,20 +602,39 @@ export function Timeline({
           )}
         </AnimatePresence>
 
-        <EmperorStrip
-          layouts={bandLayouts}
-          compact={!expanded}
-          showEraLabels={expanded}
-          activeEmperorId={activeEmperorId}
-          hoveredId={hoveredBand}
-          onHover={setHoveredBand}
-          onSelect={onSelectEmperor}
-        />
+        <motion.div
+          animate={{
+            scaleY: !expanded && hinted ? 1.08 : 1,
+            scaleX: !expanded && hinted ? 1.01 : 1,
+          }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          style={{ transformOrigin: "center bottom" }}
+        >
+          <EmperorStrip
+            layouts={bandLayouts}
+            compact={!expanded}
+            showEraLabels={expanded}
+            activeEmperorId={activeEmperorId}
+            hoveredId={hoveredBand}
+            onHover={setHoveredBand}
+            onSelect={(band) => {
+              if (!expanded) expandTimeline();
+              onSelectEmperor(band);
+            }}
+          />
+        </motion.div>
 
         {!expanded && (
-          <p className="pointer-events-none mt-1 text-center text-[9px] tracking-wider text-ink-300">
-            悬停展开时间轴
-          </p>
+          <motion.p
+            className="pointer-events-none mt-1 text-center text-[9px] tracking-wider"
+            animate={{
+              color: hinted ? "rgba(196, 60, 44, 0.85)" : "rgba(143, 133, 112, 1)",
+              letterSpacing: hinted ? "0.22em" : "0.12em",
+            }}
+            transition={{ duration: 0.28 }}
+          >
+            {hinted ? "点击展开时间轴" : "朝代时间轴"}
+          </motion.p>
         )}
       </motion.div>
     </motion.div>

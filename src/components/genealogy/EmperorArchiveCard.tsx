@@ -10,9 +10,14 @@ import { motion } from "framer-motion";
 
 interface EmperorArchiveCardProps {
   emperorId: EmperorId;
+  /** 在浮层内撑满剩余高度 */
+  fill?: boolean;
 }
 
-export function EmperorArchiveCard({ emperorId }: EmperorArchiveCardProps) {
+export function EmperorArchiveCard({
+  emperorId,
+  fill = false,
+}: EmperorArchiveCardProps) {
   const person = getEmperorPerson(emperorId);
   const events = getEventsByEmperorSafe(emperorId);
 
@@ -22,13 +27,17 @@ export function EmperorArchiveCard({ emperorId }: EmperorArchiveCardProps) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className="border-t border-ink-800/10 bg-ink-50/80 px-4 py-5 md:px-6"
+      className={`bg-ink-50/80 px-3 py-4 md:px-5 md:py-5 ${
+        fill
+          ? "flex min-h-0 flex-1 flex-col"
+          : "border-t border-ink-800/10"
+      }`}
     >
-      <p className="font-display text-[10px] tracking-[0.3em] text-cinnabar">
+      <p className="shrink-0 font-display text-[10px] tracking-[0.3em] text-cinnabar md:tracking-[0.35em]">
         帝王档案卡
       </p>
 
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+      <div className="mt-3 grid gap-2 sm:grid-cols-3 md:mt-4 md:gap-3">
         <NameBlock label="姓名" value={person.name} emphasize />
         <NameBlock
           label="年号"
@@ -65,7 +74,13 @@ export function EmperorArchiveCard({ emperorId }: EmperorArchiveCardProps) {
         </p>
       )}
 
-      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-600">
+      <p
+        className={`mt-3 text-[13px] text-ink-600 md:mt-4 md:text-sm ${
+          fill
+            ? "min-h-0 flex-1 leading-[1.95] tracking-wide md:leading-[2.1] md:tracking-[0.04em] lg:leading-[2.25]"
+            : "max-w-3xl leading-relaxed"
+        }`}
+      >
         {person.summary}
       </p>
 
