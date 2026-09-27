@@ -1,6 +1,10 @@
 "use client";
 
-import { EVENT_CATEGORIES, type EventCategory } from "@/data/categories";
+import {
+  EVENT_CATEGORIES,
+  EVENT_CATEGORY_LIST,
+  type EventCategory,
+} from "@/data/categories";
 
 interface EventTagProps {
   category: EventCategory;
@@ -23,23 +27,52 @@ export function EventTag({ category, size = "sm" }: EventTagProps) {
   );
 }
 
-export function EventTagLegend() {
+export type CategoryVisibility = Record<EventCategory, boolean>;
+
+export const DEFAULT_CATEGORY_VISIBILITY: CategoryVisibility = {
+  military: true,
+  political: true,
+  culture: true,
+  foreign: true,
+};
+
+interface CategoryFilterProps {
+  visibility: CategoryVisibility;
+  onToggle: (category: EventCategory) => void;
+}
+
+/** 核心主线四大类开关：军事 / 政治 / 文化 / 对外 */
+export function CategoryFilter({ visibility, onToggle }: CategoryFilterProps) {
   return (
-    <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-      {(Object.keys(EVENT_CATEGORIES) as EventCategory[]).map((id) => {
-        const meta = EVENT_CATEGORIES[id];
+    <div
+      className="flex flex-wrap gap-1.5"
+      role="group"
+      aria-label="事件分类筛选"
+    >
+      {EVENT_CATEGORY_LIST.map((meta) => {
+        const on = visibility[meta.id];
         return (
-          <span
-            key={id}
-            className="inline-flex items-center gap-1 text-[10px] text-ink-500"
-            title={meta.label}
+          <button
+            key={meta.id}
+            type="button"
+            aria-pressed={on}
+            title={on ? `隐藏${meta.label}` : `显示${meta.label}`}
+            onClick={() => onToggle(meta.id)}
+            className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] transition ${
+              on
+                ? `${meta.border} ${meta.bg} ${meta.text} shadow-[0_1px_0_rgba(48,42,28,0.04)]`
+                : "border-ink-800/10 bg-ink-800/[0.03] text-ink-400 opacity-70 hover:opacity-90"
+            }`}
           >
-            <span className="text-[11px] leading-none" aria-hidden>
-              {meta.emoji}
-            </span>
+            <span
+              className={`h-2 w-2 shrink-0 rounded-full ${meta.dot} ${
+                on ? "" : "opacity-40 grayscale"
+              }`}
+              aria-hidden
+            />
             <span className="hidden sm:inline">{meta.label}</span>
             <span className="sm:hidden">{meta.shortLabel}</span>
-          </span>
+          </button>
         );
       })}
     </div>

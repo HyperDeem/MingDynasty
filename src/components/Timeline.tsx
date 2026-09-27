@@ -13,10 +13,15 @@ import {
   type EmperorBand,
   type EmperorId,
 } from "@/data/emperors";
+import type { EventCategory } from "@/data/categories";
 import { EmperorStrip } from "@/components/timeline/EmperorStrip";
 import { EventNode } from "@/components/timeline/EventNode";
 import { ModeToggle } from "@/components/timeline/ModeToggle";
-import { EventTagLegend } from "@/components/EventTag";
+import {
+  CategoryFilter,
+  DEFAULT_CATEGORY_VISIBILITY,
+  type CategoryVisibility,
+} from "@/components/EventTag";
 
 interface TimelineProps {
   mode: TimelineMode;
@@ -33,33 +38,50 @@ function yearToPercent(year: number) {
 }
 
 /**
- * 按年排序后做可读性排布：
- * - 过密时微调横向间距
- * - 邻近事件交替抬高标签行，避免互压与压到色带
+ * 可读性排布参数：
+ * - minGapPct：相邻节点最小横向间距（占轨道百分比）
+ * - edgePad：左右边距，避免贴边裁切
+ * - 邻近节点轮换 3 行标签高度，减少文字重叠
  */
+const LAYOUT = {
+  minGapPct: 5.2,
+  edgePad: 2.8,
+  maxRow: 2,
+} as const;
+
 function layoutEventNodes(
   events: ChronicleEvent[],
   activeEmperorId: EmperorId | null
 ) {
-  const sorted = [...events].sort((a, b) => a.year - b.year || a.id.localeCompare(b.id));
-  const minGap = 3.2; // 百分比
+  const sorted = [...events].sort(
+    (a, b) => a.year - b.year || a.id.localeCompare(b.id)
+  );
   const items: {
     event: ChronicleEvent;
     leftPercent: number;
-    labelRow: 0 | 1;
+    labelRow: number;
     dimmed: boolean;
   }[] = [];
 
   let lastLeft = -Infinity;
-  let lastRow: 0 | 1 = 1;
+  let nextRow = 0;
 
   for (const event of sorted) {
     let left = yearToPercent(event.year);
-    if (left - lastLeft < minGap) {
-      left = Math.min(98.5, lastLeft + minGap);
+    left = Math.max(LAYOUT.edgePad, Math.min(100 - LAYOUT.edgePad, left));
+
+    const crowded = left - lastLeft < LAYOUT.minGapPct;
+    if (crowded) {
+      left = Math.min(100 - LAYOUT.edgePad, lastLeft + LAYOUT.minGapPct);
     }
-    const labelRow: 0 | 1 =
-      left - lastLeft < minGap * 1.6 ? (((1 - lastRow) as 0 | 1)) : 0;
+
+    const labelRow = crowded ? nextRow : 0;
+    if (crowded) {
+      nextRow = (nextRow + 1) % (LAYOUT.maxRow + 1);
+    } else {
+      nextRow = 1;
+    }
+
     items.push({
       event,
       leftPercent: left,
@@ -68,9 +90,29 @@ function layoutEventNodes(
         activeEmperorId !== null && event.emperorId !== activeEmperorId,
     });
     lastLeft = left;
-    lastRow = labelRow;
   }
+
+  // 若整体被挤出右边界，整体略微压缩回可显示区间
+  const last = items[items.length - 1];
+  if (last && last.leftPercent > 100 - LAYOUT.edgePad) {
+    const overflow = last.leftPercent - (100 - LAYOUT.edgePad);
+    const first = items[0]?.leftPercent ?? LAYOUT.edgePad;
+    const span = Math.max(1, last.leftPercent - first);
+    for (const item of items) {
+      const t = (item.leftPercent - first) / span;
+      item.leftPercent =
+        LAYOUT.edgePad + t * (100 - LAYOUT.edgePad * 2 - 0.01);
+    }
+  }
+
   return items;
+}
+
+function eventMatchesCategories(
+  event: ChronicleEvent,
+  visibility: CategoryVisibility
+): boolean {
+  return event.categories.some((c) => visibility[c]);
 }
 
 export function Timeline({
@@ -83,11 +125,19 @@ export function Timeline({
 }: TimelineProps) {
   const [hoveredBand, setHoveredBand] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [categoryVisibility, setCategoryVisibility] =
+    useState<CategoryVisibility>(DEFAULT_CATEGORY_VISIBILITY);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const events = useMemo(() => getVisibleEvents(mode), [mode]);
+  const baseEvents = useMemo(() => getVisibleEvents(mode), [mode]);
 
-  /** 编年史 / 色带：等分槽位，保证每段年号都能显示 */
+  const events = useMemo(() => {
+    if (mode !== "core") return baseEvents;
+    return baseEvents.filter((e) =>
+      eventMatchesCategories(e, categoryVisibility)
+    );
+  }, [mode, baseEvents, categoryVisibility]);
+
   const bandLayouts = useMemo(() => {
     const n = EMPEROR_BANDS.length;
     const size = 100 / n;
@@ -104,6 +154,16 @@ export function Timeline({
   );
 
   const showEvents = mode === "core";
+  const visibleCount = events.length;
+
+  const toggleCategory = (category: EventCategory) => {
+    setCategoryVisibility((prev) => {
+      const next = { ...prev, [category]: !prev[category] };
+      // 至少保留一类开启，避免整条轴空白
+      if (!Object.values(next).some(Boolean)) return prev;
+      return next;
+    });
+  };
 
   const clearLeaveTimer = () => {
     if (leaveTimer.current) {
@@ -141,7 +201,6 @@ export function Timeline({
         }}
         transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
       >
-        {/* 展开区：模式切换 + 图例 + 事件轨 */}
         <AnimatePresence initial={false}>
           {expanded && (
             <motion.div
@@ -156,24 +215,28 @@ export function Timeline({
                 <ModeToggle mode={mode} onModeChange={onModeChange} />
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   {showEvents ? (
-                    <EventTagLegend />
+                    <CategoryFilter
+                      visibility={categoryVisibility}
+                      onToggle={toggleCategory}
+                    />
                   ) : (
                     <p className="text-[11px] text-ink-400">
                       年号等分排列 · 点击色块打开谱系
                     </p>
                   )}
                   <p className="font-display text-[10px] tracking-widest text-ink-300">
-                    1368 — 1644
+                    {showEvents
+                      ? `显示 ${visibleCount} 节点 · 1368 — 1644`
+                      : "1368 — 1644"}
                   </p>
                 </div>
               </div>
 
               {showEvents && (
                 <nav
-                  className="relative mb-3 h-[7.75rem] w-full md:h-[8.5rem]"
+                  className="relative mb-3 h-[9.5rem] w-full md:h-[10.5rem]"
                   aria-label="核心主线事件"
                 >
-                  {/* 轴线贴底，标签全部在上方，与下方色带分离 */}
                   <div
                     className="pointer-events-none absolute bottom-1.5 left-0 right-0 h-px bg-gradient-to-r from-cinnabar/35 via-ink-400/25 to-ink-300/20"
                     aria-hidden
@@ -185,19 +248,27 @@ export function Timeline({
                     1644
                   </span>
 
-                  <AnimatePresence mode="popLayout">
-                    {positioned.map(({ event, leftPercent, labelRow, dimmed }) => (
-                      <EventNode
-                        key={event.id}
-                        event={event}
-                        leftPercent={leftPercent}
-                        labelRow={labelRow}
-                        isActive={activeEventId === event.id}
-                        dimmed={dimmed}
-                        onSelect={onSelectEvent}
-                      />
-                    ))}
-                  </AnimatePresence>
+                  {visibleCount === 0 ? (
+                    <p className="absolute inset-0 flex items-center justify-center text-[11px] text-ink-400">
+                      请至少开启一类事件筛选
+                    </p>
+                  ) : (
+                    <AnimatePresence mode="popLayout">
+                      {positioned.map(
+                        ({ event, leftPercent, labelRow, dimmed }) => (
+                          <EventNode
+                            key={event.id}
+                            event={event}
+                            leftPercent={leftPercent}
+                            labelRow={labelRow}
+                            isActive={activeEventId === event.id}
+                            dimmed={dimmed}
+                            onSelect={onSelectEvent}
+                          />
+                        )
+                      )}
+                    </AnimatePresence>
+                  )}
                 </nav>
               )}
 
@@ -210,7 +281,6 @@ export function Timeline({
           )}
         </AnimatePresence>
 
-        {/* 色带：缩略/展开共用，高度与年号随状态变化 */}
         <EmperorStrip
           layouts={bandLayouts}
           compact={!expanded}

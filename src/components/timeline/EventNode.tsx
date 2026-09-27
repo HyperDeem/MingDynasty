@@ -8,12 +8,15 @@ interface EventNodeProps {
   event: ChronicleEvent;
   /** 横向位置：0–100% */
   leftPercent: number;
-  /** 标签行：0=靠近轴线，1=更上一层（避免重叠） */
-  labelRow: 0 | 1;
+  /** 标签行：0 贴近轴，数字越大越靠上 */
+  labelRow: number;
   isActive: boolean;
   dimmed?: boolean;
   onSelect: (event: ChronicleEvent) => void;
 }
+
+/** 各行标签距点的上移量（px），行距加大避免互压 */
+const ROW_OFFSET_PX = [14, 40, 66] as const;
 
 export function EventNode({
   event,
@@ -25,12 +28,13 @@ export function EventNode({
 }: EventNodeProps) {
   const isTurning = event.weight === "turning";
   const primary = EVENT_CATEGORIES[event.categories[0]];
-  /** 标签始终在点上方，行距拉开避免互压与压色带 */
-  const labelBottom = labelRow === 0 ? "bottom-full mb-2.5" : "bottom-full mb-9";
+  const row = Math.min(Math.max(labelRow, 0), ROW_OFFSET_PX.length - 1);
+  const stemH = ROW_OFFSET_PX[row] - 4;
 
   return (
     <motion.button
       type="button"
+      layout
       initial={{ opacity: 0, y: 6 }}
       animate={{
         opacity: dimmed ? 0.28 : 1,
@@ -48,11 +52,14 @@ export function EventNode({
       aria-current={isActive ? "true" : undefined}
       disabled={dimmed}
     >
-      <span className="relative flex flex-col items-center pb-0">
+      <span className="relative flex flex-col items-center">
         <span
-          className={`absolute ${labelBottom} max-w-[4.8rem] text-center font-display text-[10px] leading-tight md:max-w-[6.2rem] md:text-[11px] ${
-            isTurning ? "font-semibold text-ink-900" : "font-medium text-ink-700"
+          className={`absolute bottom-full text-center font-display leading-tight ${
+            isTurning
+              ? "max-w-[5.2rem] text-[10px] font-semibold text-ink-900 md:max-w-[6.5rem] md:text-[11px]"
+              : "max-w-[4.8rem] text-[10px] font-medium text-ink-700 md:max-w-[6rem]"
           } ${isActive ? "!text-cinnabar" : ""}`}
+          style={{ marginBottom: ROW_OFFSET_PX[row] }}
         >
           {event.title}
           <span className="mt-0.5 block text-[9px] font-normal tabular-nums text-ink-400">
@@ -60,10 +67,9 @@ export function EventNode({
           </span>
         </span>
 
-        {/* 短导引线，把点与标签连到轴 */}
         <span
           className="mb-0.5 block w-px bg-ink-400/25"
-          style={{ height: labelRow === 0 ? 10 : 28 }}
+          style={{ height: stemH }}
           aria-hidden
         />
 
