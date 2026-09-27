@@ -28,6 +28,8 @@ interface TimelineProps {
   activeEmperorId: EmperorId | null;
   onSelectEvent: (event: ChronicleEvent) => void;
   onSelectEmperor: (band: EmperorBand) => void;
+  /** 点击年号簇：同步时期/年份到地图，不强制开浮层 */
+  onSelectEra?: (periodId: PeriodId) => void;
 }
 
 const LAYOUT = {
@@ -160,6 +162,7 @@ export function Timeline({
   activeEmperorId,
   onSelectEvent,
   onSelectEmperor,
+  onSelectEra,
 }: TimelineProps) {
   const [hoveredBand, setHoveredBand] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -357,6 +360,7 @@ export function Timeline({
     clearFocusLeave();
     lockExpanded(500);
     setFocusedPeriodId(periodId);
+    onSelectEra?.(periodId);
     requestAnimationFrame(() => {
       const top = rootRef.current?.getBoundingClientRect().top;
       if (top != null) lastExpandedTop.current = top;

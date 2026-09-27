@@ -1,22 +1,23 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useCallback, useMemo, useState } from "react";
 import {
   DYNASTY_META,
   getPeriodById,
+  getPeriodContent,
   type PeriodId,
 } from "@/data/ming-dynasty";
 import { type ChronicleEvent } from "@/data/chronicle-events";
-import type { EmperorBand, EmperorId } from "@/data/emperors";
+import {
+  findEmperorBandAtYear,
+  type EmperorBand,
+  type EmperorId,
+} from "@/data/emperors";
 import { getDefaultPeriodForEmperor } from "@/data/lineage";
 import { Timeline } from "@/components/Timeline";
-import { PeriodPanel } from "@/components/PeriodPanel";
-import { GenealogyPanel } from "@/components/genealogy/GenealogyPanel";
-
-type RightView =
-  | { kind: "period"; periodId: PeriodId; eventId: string | null }
-  | { kind: "genealogy"; emperorId: EmperorId };
+import { TerritoryMapPanel } from "@/components/map/TerritoryMapPanel";
+import { EmperorDrawer } from "@/components/overlays/EmperorDrawer";
+import { WorldEventsDrawer } from "@/components/overlays/WorldEventsDrawer";
 
 function yearFromPeriod(periodId: PeriodId): number {
   const p = getPeriodById(periodId);
@@ -25,122 +26,142 @@ function yearFromPeriod(periodId: PeriodId): number {
 }
 
 export default function HomePage() {
-  const [rightView, setRightView] = useState<RightView>({
-    kind: "period",
-    periodId: DYNASTY_META.defaultPeriodId,
-    eventId: null,
-  });
+  const [periodId, setPeriodId] = useState<PeriodId>(
+    DYNASTY_META.defaultPeriodId
+  );
   const [currentYear, setCurrentYear] = useState(() =>
     yearFromPeriod(DYNASTY_META.defaultPeriodId)
   );
+  const [emperorId, setEmperorId] = useState<EmperorId | null>(null);
+  const [worldOpen, setWorldOpen] = useState(false);
+  const [highlightEventId, setHighlightEventId] = useState<string | null>(
+    null
+  );
 
+  const territory = useMemo(
+    () => getPeriodContent(periodId).territory,
+    [periodId]
+  );
+
+  const syncPeriodYear = useCallback((nextPeriod: PeriodId, year?: number) => {
+    setPeriodId(nextPeriod);
+    setCurrentYear(year ?? yearFromPeriod(nextPeriod));
+  }, []);
+
+  /** 年号簇：只跳疆域，不强制开浮层 */
+  const handleSelectEra = useCallback(
+    (nextPeriod: PeriodId) => {
+      syncPeriodYear(nextPeriod);
+      setHighlightEventId(null);
+    },
+    [syncPeriodYear]
+  );
+
+  /** 事件节点：开世界事件并高亮 */
   const handleSelectEvent = useCallback((event: ChronicleEvent) => {
-    setRightView({
-      kind: "period",
-      periodId: event.periodId,
-      eventId: event.id,
-    });
+    setPeriodId(event.periodId);
     setCurrentYear(event.year);
+    setHighlightEventId(event.id);
+    setWorldOpen(true);
+    setEmperorId(null);
   }, []);
 
-  const handleSelectEmperor = useCallback((band: EmperorBand) => {
-    setRightView({ kind: "genealogy", emperorId: band.id });
-  }, []);
+  /** 色带：开帝王浮层 + 同步疆域年份 */
+  const handleSelectEmperor = useCallback(
+    (band: EmperorBand) => {
+      const nextPeriod = band.periodIds[0];
+      syncPeriodYear(nextPeriod);
+      setEmperorId(band.id);
+      setWorldOpen(false);
+      setHighlightEventId(null);
+    },
+    [syncPeriodYear]
+  );
 
-  const handleGenealogyEmperor = useCallback((id: EmperorId) => {
-    setRightView({ kind: "genealogy", emperorId: id });
-  }, []);
-
-  const handleCloseGenealogy = useCallback(() => {
-    setRightView((prev) => {
-      if (prev.kind !== "genealogy") return prev;
-      const periodId = getDefaultPeriodForEmperor(prev.emperorId);
-      setCurrentYear(yearFromPeriod(periodId));
-      return {
-        kind: "period",
-        periodId,
-        eventId: null,
-      };
-    });
-  }, []);
+  const handleGenealogyEmperor = useCallback(
+    (id: EmperorId) => {
+      const nextPeriod = getDefaultPeriodForEmperor(id);
+      syncPeriodYear(nextPeriod);
+      setEmperorId(id);
+    },
+    [syncPeriodYear]
+  );
 
   const handleSelectMapYear = useCallback((year: number) => {
     setCurrentYear(year);
-    setRightView((prev) =>
-      prev.kind === "period" ? { ...prev, eventId: null } : prev
-    );
+    setHighlightEventId(null);
+    const band = findEmperorBandAtYear(year);
+    if (band?.periodIds[0]) setPeriodId(band.periodIds[0]);
   }, []);
 
-  const activeEventId =
-    rightView.kind === "period" ? rightView.eventId : null;
-  const activeEmperorId =
-    rightView.kind === "genealogy" ? rightView.emperorId : null;
-
-  const panelKey =
-    rightView.kind === "genealogy"
-      ? `gen-${rightView.emperorId}`
-      : `per-${rightView.periodId}`;
+  const handleWorldEventPick = useCallback(
+    (year: number, eventId: string) => {
+      setCurrentYear(year);
+      setHighlightEventId(eventId);
+    },
+    []
+  );
 
   return (
-    <div className="relative flex h-dvh flex-col overflow-hidden">
-      <header className="relative z-20 flex shrink-0 items-end justify-between gap-4 border-b border-ink-800/10 px-5 py-4 md:px-8">
-        <div>
-          <p className="font-display text-xs tracking-[0.35em] text-ink-500 md:text-sm">
-            INTERACTIVE CHRONICLE
-          </p>
-          <h1 className="mt-1 font-display text-3xl font-bold tracking-wide text-ink-900 md:text-4xl">
-            {DYNASTY_META.title}
-          </h1>
-        </div>
-        <div className="pb-1 text-right">
-          <p className="font-display text-sm text-ink-500 md:text-base">
-            {DYNASTY_META.subtitle}
-          </p>
-          <p className="mt-0.5 text-[11px] tabular-nums text-ink-400">
-            地图年份 · {currentYear}
-          </p>
-        </div>
-      </header>
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-[#f3efe4]">
+      {/* 全屏地图舞台 */}
+      <div className="relative min-h-0 flex-1">
+        <TerritoryMapPanel
+          variant="stage"
+          currentYear={currentYear}
+          territory={territory}
+          onSelectYear={handleSelectMapYear}
+        />
 
-      {/* 主内容：全宽，时间轴改到底部 */}
-      <section className="relative z-10 min-h-0 flex-1 overflow-hidden">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={panelKey}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 6 }}
-            transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-            className={
-              rightView.kind === "genealogy"
-                ? "h-full min-h-0 overflow-hidden"
-                : "h-full min-h-0 overflow-y-auto scrollbar-timeline"
-            }
-          >
-            {rightView.kind === "genealogy" ? (
-              <GenealogyPanel
-                emperorId={rightView.emperorId}
-                onSelectEmperor={handleGenealogyEmperor}
-                onClose={handleCloseGenealogy}
-              />
-            ) : (
-              <PeriodPanel
-                periodId={rightView.periodId}
-                highlightEventId={rightView.eventId}
-                currentYear={currentYear}
-                onSelectYear={handleSelectMapYear}
-              />
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </section>
+        {/* 轻量顶栏 */}
+        <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-4 px-4 pt-3 md:px-6 md:pt-4">
+          <div className="pointer-events-auto rounded-md border border-ink-800/10 bg-[rgba(251,249,243,0.9)] px-3 py-2 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-md">
+            <p className="font-display text-[10px] tracking-[0.32em] text-ink-500">
+              INTERACTIVE CHRONICLE
+            </p>
+            <h1 className="font-display text-xl font-bold tracking-wide text-ink-900 md:text-2xl">
+              {DYNASTY_META.title}
+            </h1>
+          </div>
+          <div className="pointer-events-auto rounded-md border border-ink-800/10 bg-[rgba(251,249,243,0.9)] px-3 py-2 text-right shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-md">
+            <p className="font-display text-[11px] tabular-nums text-ink-700">
+              {currentYear}
+              <span className="ml-1 text-[10px] font-normal text-ink-400">
+                年
+              </span>
+            </p>
+            <p className="mt-0.5 text-[10px] text-ink-400">
+              {getPeriodById(periodId).label}
+            </p>
+          </div>
+        </header>
 
-      <footer className="relative z-20 shrink-0">
+        <EmperorDrawer
+          emperorId={emperorId}
+          onClose={() => setEmperorId(null)}
+          onSelectEmperor={handleGenealogyEmperor}
+        />
+
+        <WorldEventsDrawer
+          open={worldOpen}
+          periodId={periodId}
+          highlightEventId={highlightEventId}
+          currentYear={currentYear}
+          onClose={() => {
+            setWorldOpen(false);
+            setHighlightEventId(null);
+          }}
+          onSelectEventYear={handleWorldEventPick}
+        />
+      </div>
+
+      <footer className="relative z-40 shrink-0">
         <Timeline
-          activeEventId={activeEventId}
-          activeEmperorId={activeEmperorId}
+          activeEventId={highlightEventId}
+          activeEmperorId={emperorId}
           onSelectEvent={handleSelectEvent}
           onSelectEmperor={handleSelectEmperor}
+          onSelectEra={handleSelectEra}
         />
       </footer>
     </div>

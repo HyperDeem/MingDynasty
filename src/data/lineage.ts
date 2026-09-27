@@ -852,6 +852,185 @@ export function getHighlightedEdges(focusId: LineageNodeId): Set<string> {
   return set;
 }
 
+export type EgoLayoutPerson = LineagePerson & {
+  layoutX: number;
+  layoutY: number;
+};
+
+export interface EgoNeighborhood {
+  focusId: LineageNodeId;
+  nodeIds: Set<LineageNodeId>;
+  persons: EgoLayoutPerson[];
+  edges: BloodEdge[];
+  canvas: { width: number; height: number };
+}
+
+function buildParentChildMaps() {
+  const parents = new Map<LineageNodeId, LineageNodeId[]>();
+  const children = new Map<LineageNodeId, LineageNodeId[]>();
+  for (const e of BLOOD_EDGES) {
+    if (!parents.has(e.to)) parents.set(e.to, []);
+    parents.get(e.to)!.push(e.from);
+    if (!children.has(e.from)) children.set(e.from, []);
+    children.get(e.from)!.push(e.to);
+  }
+  return { parents, children };
+}
+
+/**
+ * 以焦点为中心的近邻子图：父母、同辈兄弟、子女；
+ * 靖难相关时纳入夺位边两端。自动排布坐标供浮层可读展示。
+ */
+export function getEgoNeighborhood(focusId: LineageNodeId): EgoNeighborhood {
+  const { parents, children } = buildParentChildMaps();
+  const ids = new Set<LineageNodeId>([focusId]);
+
+  const parentIds = parents.get(focusId) ?? [];
+  for (const p of parentIds) ids.add(p);
+
+  // 同辈：与焦点共享同一父系
+  const siblingIds = new Set<LineageNodeId>();
+  for (const p of parentIds) {
+    for (const c of children.get(p) ?? []) {
+      ids.add(c);
+      if (c !== focusId) siblingIds.add(c);
+    }
+  }
+
+  const childIds = children.get(focusId) ?? [];
+  for (const c of childIds) ids.add(c);
+
+  // 靖难：惠帝/成祖互看时补齐太祖–懿文–惠帝–成祖
+  if (focusId === "chengzu" || focusId === "huizong") {
+    ids.add("taizu");
+    ids.add("yiwen");
+    ids.add("huizong");
+    ids.add("chengzu");
+  }
+
+  // 旁支入继：世宗时带上兴献王
+  if (focusId === "shizong") ids.add("xingxian");
+  if (focusId === "xingxian") {
+    ids.add("xianzong");
+    ids.add("shizong");
+  }
+
+  const edges = [...BLOOD_EDGES, ...USURP_EDGES].filter(
+    (e) => ids.has(e.from) && ids.has(e.to)
+  );
+
+  // —— 按辈分行自动排布 ——
+  const NODE_W = 118;
+  const NODE_H = 86;
+  const GAP_X = 28;
+  const ROW_GAP = 110;
+  const PAD = 28;
+
+  type RowKey = "ancestors" | "focus" | "descendants";
+  const rows: Record<RowKey, LineageNodeId[]> = {
+    ancestors: [],
+    focus: [],
+    descendants: [],
+  };
+
+  const ancestorSet = new Set<LineageNodeId>();
+  for (const p of parentIds) ancestorSet.add(p);
+  if (ids.has("taizu") && focusId !== "taizu") {
+    // 靖难补丁：太祖、懿文放在祖先行
+    if (focusId === "chengzu" || focusId === "huizong") {
+      ancestorSet.add("taizu");
+      ancestorSet.add("yiwen");
+    }
+  }
+  if (focusId === "shizong" && ids.has("xingxian")) {
+    ancestorSet.add("xingxian");
+    // 兴献之父宪宗也可出现在祖先
+    if (ids.has("xianzong")) ancestorSet.add("xianzong");
+  }
+
+  for (const id of ancestorSet) {
+    if (ids.has(id) && id !== focusId) rows.ancestors.push(id);
+  }
+
+  // 焦点行：兄弟 + 焦点（焦点居中偏好）
+  const focusRow = [focusId, ...Array.from(siblingIds)];
+  // 去重且保持稳定：按 throneOrder / x 排序
+  const uniqFocus = Array.from(new Set(focusRow));
+  uniqFocus.sort((a, b) => {
+    if (a === focusId) return -1;
+    if (b === focusId) return 1;
+    const pa = getPerson(a);
+    const pb = getPerson(b);
+    return (pa.throneOrder ?? 99) - (pb.throneOrder ?? 99) || pa.x - pb.x;
+  });
+  // 焦点放中间
+  const withoutFocus = uniqFocus.filter((id) => id !== focusId);
+  const mid = Math.floor(withoutFocus.length / 2);
+  rows.focus = [
+    ...withoutFocus.slice(0, mid),
+    focusId,
+    ...withoutFocus.slice(mid),
+  ];
+
+  for (const c of childIds) {
+    if (ids.has(c)) rows.descendants.push(c);
+  }
+  // 靖难时成祖子女不在惠帝 ego 的 descendants；已由 childIds 处理
+
+  // 祖先行按原 y/x 排序
+  rows.ancestors.sort((a, b) => getPerson(a).x - getPerson(b).x);
+  rows.descendants.sort((a, b) => getPerson(a).x - getPerson(b).x);
+
+  const activeRows = (
+    [
+      ["ancestors", rows.ancestors],
+      ["focus", rows.focus],
+      ["descendants", rows.descendants],
+    ] as const
+  ).filter(([, list]) => list.length > 0);
+
+  const maxCount = Math.max(...activeRows.map(([, list]) => list.length), 1);
+  const contentW = maxCount * NODE_W + (maxCount - 1) * GAP_X;
+  const width = Math.max(320, contentW + PAD * 2);
+  const height = activeRows.length * NODE_H + (activeRows.length - 1) * (ROW_GAP - NODE_H) + PAD * 2;
+
+  const positions = new Map<LineageNodeId, { x: number; y: number }>();
+  activeRows.forEach(([, list], rowIndex) => {
+    const rowW = list.length * NODE_W + (list.length - 1) * GAP_X;
+    const startX = (width - rowW) / 2;
+    const y = PAD + rowIndex * ROW_GAP;
+    list.forEach((id, i) => {
+      positions.set(id, { x: startX + i * (NODE_W + GAP_X), y });
+    });
+  });
+
+  // 确保所有 ids 都有位置（兜底）
+  let fallbackI = 0;
+  for (const id of ids) {
+    if (!positions.has(id)) {
+      positions.set(id, {
+        x: PAD + (fallbackI % 3) * (NODE_W + GAP_X),
+        y: PAD + activeRows.length * ROW_GAP + Math.floor(fallbackI / 3) * ROW_GAP,
+      });
+      fallbackI += 1;
+    }
+  }
+
+  const persons: EgoLayoutPerson[] = Array.from(ids).map((id) => {
+    const p = getPerson(id);
+    const pos = positions.get(id)!;
+    return { ...p, layoutX: pos.x, layoutY: pos.y };
+  });
+
+  const maxY = Math.max(...persons.map((p) => p.layoutY), 0);
+  const canvas = {
+    width,
+    height: Math.max(height, maxY + NODE_H + PAD),
+  };
+
+  return { focusId, nodeIds: ids, persons, edges, canvas };
+}
+
 export function reignTitlesLabel(person: LineagePerson): string {
   if (person.reigns.length === 0) return "未称帝";
   return person.reigns.map((r) => r.title).join(" / ");

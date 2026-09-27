@@ -16,7 +16,7 @@ const GeoMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full min-h-[320px] flex-col items-center justify-center gap-2 text-[#898d80]">
+      <div className="flex h-full min-h-[320px] flex-col items-center justify-center gap-2 bg-[#f3efe4] text-[#898d80]">
         <span className="h-7 w-7 animate-spin rounded-full border-2 border-[#d4cab2] border-t-[#3f6f64]" />
         <p className="text-xs">时空数据正在准备</p>
         <p className="text-[10px] text-[#898d80]/80">省界与疆域叠层加载中…</p>
@@ -30,17 +30,20 @@ interface TerritoryMapPanelProps {
   territory?: TerritoryData;
   className?: string;
   onSelectYear?: (year: number) => void;
+  /** 全屏舞台：去边框页眉，控件浮动在地图上 */
+  variant?: "card" | "stage";
 }
 
 /**
- * 中央交互疆域图
- * UI / 视域对齐 lineage-forest 迁徙图：全幅 Canvas、浮动摘要/图例、右侧缩放、底部署快照轴
+ * 交互疆域图
+ * stage：全幅背景舞台；card：卡片式（兼容旧布局）
  */
 export function TerritoryMapPanel({
   currentYear,
   territory,
   className,
   onSelectYear,
+  variant = "card",
 }: TerritoryMapPanelProps) {
   const {
     snapshot,
@@ -56,6 +59,7 @@ export function TerritoryMapPanel({
 
   const [hoverName, setHoverName] = useState<string | null>(null);
   const [mapApi, setMapApi] = useState<GeoMapApi | null>(null);
+  const isStage = variant === "stage";
 
   const legendItems = useMemo(() => {
     const items: { id: string; label: string; color: string }[] = [
@@ -79,40 +83,47 @@ export function TerritoryMapPanel({
     return items;
   }, [extras]);
 
-  return (
-    <section
-      className={
-        className ??
-        "flex min-h-[360px] flex-col overflow-hidden border border-[#e3dcca] bg-[#fbf9f3]"
-      }
-    >
-      <header className="flex flex-wrap items-end justify-between gap-3 border-b border-[#e3dcca] px-4 py-3 md:px-5">
-        <div>
-          <p className="font-display text-[10px] tracking-[0.28em] text-[#b6584f]">
-            交互疆域
-          </p>
-          <h3 className="mt-0.5 font-display text-lg font-bold text-[#222621]">
-            {snapshot.label}
-            <span className="ml-2 text-sm font-normal tabular-nums text-[#898d80]">
-              约 {currentYear} 年
-            </span>
-          </h3>
-          <p className="mt-1 max-w-xl text-xs leading-relaxed text-[#4f544c]">
-            {snapshot.description}
-          </p>
-        </div>
-        <div className="text-right text-[10px] text-[#898d80]">
-          <p>拖拽平移 · 滚轮缩放 · 悬停识别</p>
-          {hoverName && (
-            <p className="mt-0.5 font-display text-xs text-[#b6584f]">
-              {hoverName}
-            </p>
-          )}
-          {loading && <p className="mt-0.5">切换中…</p>}
-        </div>
-      </header>
+  const shellClass =
+    className ??
+    (isStage
+      ? "absolute inset-0 flex flex-col overflow-hidden bg-[#f3efe4]"
+      : "flex min-h-[360px] flex-col overflow-hidden border border-[#e3dcca] bg-[#fbf9f3]");
 
-      <div className="territory-canvas-wrap relative min-h-[420px] flex-1 md:min-h-[520px]">
+  return (
+    <section className={shellClass}>
+      {!isStage && (
+        <header className="flex flex-wrap items-end justify-between gap-3 border-b border-[#e3dcca] px-4 py-3 md:px-5">
+          <div>
+            <p className="font-display text-[10px] tracking-[0.28em] text-[#b6584f]">
+              交互疆域
+            </p>
+            <h3 className="mt-0.5 font-display text-lg font-bold text-[#222621]">
+              {snapshot.label}
+              <span className="ml-2 text-sm font-normal tabular-nums text-[#898d80]">
+                约 {currentYear} 年
+              </span>
+            </h3>
+            <p className="mt-1 max-w-xl text-xs leading-relaxed text-[#4f544c]">
+              {snapshot.description}
+            </p>
+          </div>
+          <div className="text-right text-[10px] text-[#898d80]">
+            <p>拖拽平移 · 滚轮缩放 · 悬停识别</p>
+            {hoverName && (
+              <p className="mt-0.5 font-display text-xs text-[#b6584f]">
+                {hoverName}
+              </p>
+            )}
+            {loading && <p className="mt-0.5">切换中…</p>}
+          </div>
+        </header>
+      )}
+
+      <div
+        className={`territory-canvas-wrap relative flex-1 ${
+          isStage ? "min-h-0" : "min-h-[420px] md:min-h-[520px]"
+        }`}
+      >
         {error ? (
           <div className="flex h-full items-center justify-center px-4 text-center text-sm text-[#b6584f]">
             {error}
@@ -131,8 +142,14 @@ export function TerritoryMapPanel({
           />
         )}
 
-        {/* 摘要卡 — 对齐参考站 migration-map-summary */}
-        <div className="pointer-events-none absolute left-3 top-3 z-10 min-w-[168px] rounded-[7px] border border-[#e3dcca] bg-[rgba(251,249,243,0.9)] px-3 py-2.5 shadow-[0_1px_2px_rgba(48,42,28,0.06),0_1px_1px_rgba(48,42,28,0.04)] backdrop-blur-[8px] md:left-4 md:top-3.5">
+        {/* 摘要 */}
+        <div
+          className={`pointer-events-none absolute z-10 min-w-[168px] rounded-[7px] border border-[#e3dcca] bg-[rgba(251,249,243,0.9)] px-3 py-2.5 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-[8px] ${
+            isStage
+              ? "left-3 top-16 md:left-5 md:top-[4.75rem]"
+              : "left-3 top-3 md:left-4 md:top-3.5"
+          }`}
+        >
           <div className="flex items-baseline justify-between gap-4">
             <span className="text-[10.5px] text-[#898d80]">疆域快照</span>
             <b className="font-display text-[17px] leading-none text-[#222621]">
@@ -140,6 +157,7 @@ export function TerritoryMapPanel({
             </b>
           </div>
           <div className="mt-1.5 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-[#4f544c]">
+            <span className="tabular-nums">{currentYear} 年</span>
             <span>{coreProvinces.length} 省区</span>
             <span>{extras.features.length} 外延</span>
             {capitals.length > 0 && (
@@ -148,10 +166,29 @@ export function TerritoryMapPanel({
               </span>
             )}
           </div>
+          {isStage && (
+            <p className="mt-1.5 max-w-[220px] text-[10px] leading-snug text-[#898d80]">
+              {snapshot.description}
+            </p>
+          )}
+          {hoverName && (
+            <p className="mt-1 font-display text-xs text-[#b6584f]">
+              {hoverName}
+            </p>
+          )}
+          {loading && (
+            <p className="mt-1 text-[10px] text-[#898d80]">切换中…</p>
+          )}
         </div>
 
-        {/* 图例 — 对齐参考站 migration-map-legend */}
-        <div className="pointer-events-none absolute right-3 top-3 z-10 flex max-w-[min(48%,420px)] flex-wrap justify-end gap-x-2.5 gap-y-1 rounded-[7px] border border-[#e3dcca] bg-[rgba(251,249,243,0.88)] px-2.5 py-2 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-[8px] md:right-4 md:top-3.5">
+        {/* 图例 */}
+        <div
+          className={`pointer-events-none absolute z-10 flex max-w-[min(48%,420px)] flex-wrap justify-end gap-x-2.5 gap-y-1 rounded-[7px] border border-[#e3dcca] bg-[rgba(251,249,243,0.88)] px-2.5 py-2 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-[8px] ${
+            isStage
+              ? "right-3 top-16 md:right-5 md:top-[4.75rem]"
+              : "right-3 top-3 md:right-4 md:top-3.5"
+          }`}
+        >
           {legendItems.map((item) => (
             <span
               key={item.id}
@@ -169,13 +206,27 @@ export function TerritoryMapPanel({
           ))}
         </div>
 
-        {/* 缩放 — 右上角方钮，对齐参考站 migration-zoom-controls */}
-        <div className="absolute right-3 top-[5.25rem] z-10 grid gap-[5px] md:right-4">
+        {/* 缩放 */}
+        <div
+          className={`absolute z-10 grid gap-[5px] ${
+            isStage
+              ? "right-3 top-[9.5rem] md:right-5"
+              : "right-3 top-[5.25rem] md:right-4"
+          }`}
+        >
           {(
             [
               { label: "放大地图", symbol: "+", action: () => mapApi?.zoomIn() },
-              { label: "缩小地图", symbol: "−", action: () => mapApi?.zoomOut() },
-              { label: "重置地图视域", symbol: "↺", action: () => mapApi?.reset() },
+              {
+                label: "缩小地图",
+                symbol: "−",
+                action: () => mapApi?.zoomOut(),
+              },
+              {
+                label: "重置地图视域",
+                symbol: "↺",
+                action: () => mapApi?.reset(),
+              },
             ] as const
           ).map((btn) => (
             <button
@@ -202,10 +253,15 @@ export function TerritoryMapPanel({
 
         <p className="pointer-events-none absolute bottom-[5.35rem] right-3 z-10 text-[9.5px] text-[rgba(79,84,76,0.62)] md:right-4">
           中国省级边界本地加载 · 历史疆域空间示意
+          {territory && (
+            <span className="ml-2 tabular-nums">
+              · 约 {territory.areaWanKm2} 万 km²
+            </span>
+          )}
         </p>
 
-        {/* 底部快照轴 — 对齐参考站朝代时间轴 */}
-        <div className="absolute bottom-3 left-1/2 z-20 w-[min(980px,calc(100%-28px))] -translate-x-1/2 rounded-[7px] border border-[#d4cab2] bg-[rgba(251,249,243,0.94)] px-3 py-2 shadow-[0_4px_18px_-8px_rgba(48,42,28,0.22),0_1px_3px_rgba(48,42,28,0.06)] backdrop-blur-[10px]">
+        {/* 底部快照轴 */}
+        <div className="absolute bottom-3 left-1/2 z-20 w-[min(980px,calc(100%-28px))] -translate-x-1/2 rounded-[7px] border border-[#d4cab2] bg-[rgba(251,249,243,0.94)] px-3 py-2 shadow-[0_4px_18px_-8px_rgba(48,42,28,0.22)] backdrop-blur-[10px]">
           <div className="flex items-end gap-1 overflow-x-auto pb-0.5">
             {MING_TERRITORY_SNAPSHOTS.map((s) => {
               const active = s.id === snapshot.id;
@@ -243,17 +299,20 @@ export function TerritoryMapPanel({
         </div>
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-[#e3dcca] px-4 py-2 text-[10px] text-[#898d80] md:px-5">
-        <p>
-          省界底图示意 · 概念参考谭其骧《中国历史地图集》/ CHGIS · 核心区按现代省级近似着色
-        </p>
-        {territory && (
-          <p className="tabular-nums">
-            约 {territory.areaWanKm2} 万 km² · 都城{" "}
-            {territory.capitals.join("、")}
+      {!isStage && (
+        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-[#e3dcca] px-4 py-2 text-[10px] text-[#898d80] md:px-5">
+          <p>
+            省界底图示意 · 概念参考谭其骧《中国历史地图集》/ CHGIS ·
+            核心区按现代省级近似着色
           </p>
-        )}
-      </footer>
+          {territory && (
+            <p className="tabular-nums">
+              约 {territory.areaWanKm2} 万 km² · 都城{" "}
+              {territory.capitals.join("、")}
+            </p>
+          )}
+        </footer>
+      )}
     </section>
   );
 }

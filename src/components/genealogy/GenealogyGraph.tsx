@@ -1,15 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   BLOOD_EDGES,
   LINEAGE_CANVAS,
   LINEAGE_PERSONS,
   USURP_EDGES,
   getBloodPathIds,
+  getEgoNeighborhood,
   getHighlightedEdges,
   reignTitlesLabel,
+  type BloodEdge,
+  type EgoLayoutPerson,
   type LineageNodeId,
   type LineagePerson,
 } from "@/data/lineage";
@@ -17,55 +21,144 @@ import {
 const NODE_W = 118;
 const NODE_H = 72;
 
+export type GenealogyMode = "ego" | "full";
+type LodLevel = "dot" | "short" | "full";
+
+function lodFromScale(scale: number, mode: GenealogyMode): LodLevel {
+  if (mode === "ego") {
+    if (scale < 0.55) return "dot";
+    if (scale < 0.85) return "short";
+    return "full";
+  }
+  if (scale < 0.58) return "dot";
+  if (scale < 0.9) return "short";
+  return "full";
+}
+
 interface GenealogyGraphProps {
   focusId: LineageNodeId;
   onSelect: (id: LineageNodeId) => void;
+  /** ego：近邻可读；full：整图谱 */
+  mode?: GenealogyMode;
+  /** 全景模式下的「收起」；若提供则在工具栏显示 */
+  onRequestFullscreen?: () => void;
+  onExitFullscreen?: () => void;
+  className?: string;
 }
 
-export function GenealogyGraph({ focusId, onSelect }: GenealogyGraphProps) {
+export function GenealogyGraph({
+  focusId,
+  onSelect,
+  mode = "ego",
+  onRequestFullscreen,
+  onExitFullscreen,
+  className = "",
+}: GenealogyGraphProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0.72);
-  const pathIds = getBloodPathIds(focusId);
-  const edgeIds = getHighlightedEdges(focusId);
+  const [scale, setScale] = useState(mode === "ego" ? 1 : 0.55);
+
+  useEffect(() => {
+    setScale(mode === "ego" ? 1 : 0.55);
+  }, [mode, focusId]);
+
+  const ego = useMemo(
+    () => (mode === "ego" ? getEgoNeighborhood(focusId) : null),
+    [mode, focusId]
+  );
+
+  const pathIds = useMemo(() => {
+    if (mode === "ego" && ego) return ego.nodeIds;
+    return getBloodPathIds(focusId);
+  }, [mode, ego, focusId]);
+
+  const edgeIds = useMemo(() => {
+    if (mode === "ego" && ego) {
+      return new Set(ego.edges.map((e) => e.id));
+    }
+    return getHighlightedEdges(focusId);
+  }, [mode, ego, focusId]);
+
+  const canvas = mode === "ego" && ego ? ego.canvas : LINEAGE_CANVAS;
+  const persons: Array<LineagePerson & { drawX: number; drawY: number }> =
+    mode === "ego" && ego
+      ? ego.persons.map((p: EgoLayoutPerson) => ({
+          ...p,
+          drawX: p.layoutX,
+          drawY: p.layoutY,
+        }))
+      : LINEAGE_PERSONS.map((p) => ({ ...p, drawX: p.x, drawY: p.y }));
+
+  const edges: BloodEdge[] =
+    mode === "ego" && ego ? ego.edges : [...BLOOD_EDGES, ...USURP_EDGES];
+
+  const lod = lodFromScale(scale, mode);
+  const personById = useMemo(() => {
+    const m = new Map<LineageNodeId, (typeof persons)[0]>();
+    for (const p of persons) m.set(p.id, p);
+    return m;
+  }, [persons]);
 
   const scrollToFocus = useCallback(() => {
-    const person = LINEAGE_PERSONS.find((p) => p.id === focusId);
+    const person = personById.get(focusId);
     const vp = viewportRef.current;
     if (!person || !vp) return;
-    const targetX = person.x * scale - vp.clientWidth / 2 + (NODE_W * scale) / 2;
-    const targetY = person.y * scale - vp.clientHeight / 2 + (NODE_H * scale) / 2;
+    const targetX =
+      person.drawX * scale - vp.clientWidth / 2 + (NODE_W * scale) / 2;
+    const targetY =
+      person.drawY * scale - vp.clientHeight / 2 + (NODE_H * scale) / 2;
     vp.scrollTo({
       left: Math.max(0, targetX),
       top: Math.max(0, targetY),
       behavior: "smooth",
     });
-  }, [focusId, scale]);
+  }, [focusId, scale, personById]);
 
   useEffect(() => {
     const t = window.setTimeout(scrollToFocus, 80);
     return () => window.clearTimeout(t);
   }, [scrollToFocus]);
 
-  const allEdges = [...BLOOD_EDGES, ...USURP_EDGES];
+  const minScale = mode === "ego" ? 0.7 : 0.4;
+  const maxScale = mode === "ego" ? 1.25 : 1.35;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-800/10 px-4 py-2">
+    <div className={`flex h-full min-h-0 flex-col ${className}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-800/10 px-3 py-2 md:px-4">
         <div>
           <p className="font-display text-[10px] tracking-[0.25em] text-ink-400">
-            血缘树
+            {mode === "ego" ? "近邻血缘" : "全景谱系"}
           </p>
           <p className="text-[11px] text-ink-500">
-            拖拽滚动 · 滚轮缩放 · 点击节点切换
+            {mode === "ego"
+              ? "父母 · 同辈 · 子女 · 点击切换"
+              : "拖拽滚动 · Ctrl+滚轮缩放"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Legend />
+        <div className="flex flex-wrap items-center gap-2">
+          {mode === "full" && <Legend />}
+          {mode === "ego" && onRequestFullscreen && (
+            <button
+              type="button"
+              onClick={onRequestFullscreen}
+              className="border border-ink-800/15 px-2 py-1 text-[11px] text-ink-600 transition hover:border-cinnabar/40 hover:text-cinnabar"
+            >
+              展开全景
+            </button>
+          )}
+          {mode === "full" && onExitFullscreen && (
+            <button
+              type="button"
+              onClick={onExitFullscreen}
+              className="border border-ink-800/15 px-2 py-1 text-[11px] text-ink-600 transition hover:border-cinnabar/40 hover:text-cinnabar"
+            >
+              收起全景
+            </button>
+          )}
           <div className="flex items-center gap-1 rounded bg-ink-800/[0.06] p-0.5">
             <button
               type="button"
               className="px-2 py-1 text-xs text-ink-600 hover:text-ink-900"
-              onClick={() => setScale((s) => Math.max(0.45, s - 0.1))}
+              onClick={() => setScale((s) => Math.max(minScale, s - 0.1))}
               aria-label="缩小"
             >
               −
@@ -76,7 +169,7 @@ export function GenealogyGraph({ focusId, onSelect }: GenealogyGraphProps) {
             <button
               type="button"
               className="px-2 py-1 text-xs text-ink-600 hover:text-ink-900"
-              onClick={() => setScale((s) => Math.min(1.35, s + 0.1))}
+              onClick={() => setScale((s) => Math.min(maxScale, s + 0.1))}
               aria-label="放大"
             >
               +
@@ -92,37 +185,42 @@ export function GenealogyGraph({ focusId, onSelect }: GenealogyGraphProps) {
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
             setScale((s) =>
-              Math.min(1.35, Math.max(0.45, s - e.deltaY * 0.0015))
+              Math.min(maxScale, Math.max(minScale, s - e.deltaY * 0.0015))
             );
           }
         }}
       >
         <div
-          className="relative origin-top-left transition-transform duration-200"
+          className="relative origin-top-left transition-[width,height] duration-200"
           style={{
-            width: LINEAGE_CANVAS.width * scale,
-            height: LINEAGE_CANVAS.height * scale,
+            width: canvas.width * scale,
+            height: canvas.height * scale,
           }}
         >
           <svg
-            width={LINEAGE_CANVAS.width * scale}
-            height={LINEAGE_CANVAS.height * scale}
-            viewBox={`0 0 ${LINEAGE_CANVAS.width} ${LINEAGE_CANVAS.height}`}
+            width={canvas.width * scale}
+            height={canvas.height * scale}
+            viewBox={`0 0 ${canvas.width} ${canvas.height}`}
             className="absolute inset-0"
             aria-hidden
           >
             <defs>
               <marker
-                id="arrow-usurp"
+                id={`arrow-usurp-${mode}`}
                 markerWidth="8"
                 markerHeight="8"
                 refX="6"
                 refY="3"
                 orient="auto"
               >
-                <path d="M0,0 L6,3 L0,6" fill="none" stroke="#c43c2c" strokeWidth="1.2" />
+                <path
+                  d="M0,0 L6,3 L0,6"
+                  fill="none"
+                  stroke="#c43c2c"
+                  strokeWidth="1.2"
+                />
               </marker>
-              <filter id="glow-usurp">
+              <filter id={`glow-usurp-${mode}`}>
                 <feGaussianBlur stdDeviation="1.5" result="b" />
                 <feMerge>
                   <feMergeNode in="b" />
@@ -131,16 +229,18 @@ export function GenealogyGraph({ focusId, onSelect }: GenealogyGraphProps) {
               </filter>
             </defs>
 
-            {allEdges.map((edge) => {
-              const from = LINEAGE_PERSONS.find((p) => p.id === edge.from)!;
-              const to = LINEAGE_PERSONS.find((p) => p.id === edge.to)!;
-              const x1 = from.x + NODE_W / 2;
-              const y1 = from.y + NODE_H;
-              const x2 = to.x + NODE_W / 2;
-              const y2 = to.y;
+            {edges.map((edge) => {
+              const from = personById.get(edge.from);
+              const to = personById.get(edge.to);
+              if (!from || !to) return null;
+              const x1 = from.drawX + NODE_W / 2;
+              const y1 = from.drawY + NODE_H;
+              const x2 = to.drawX + NODE_W / 2;
+              const y2 = to.drawY;
               const midY = (y1 + y2) / 2;
               const active = edgeIds.has(edge.id);
-              const dimmed = !active;
+              const dimmed = mode === "full" && !active;
+              const showLabel = lod !== "dot";
 
               if (edge.style === "usurp") {
                 const path = lightningPath(x1, y1, x2, y2);
@@ -151,18 +251,20 @@ export function GenealogyGraph({ focusId, onSelect }: GenealogyGraphProps) {
                       fill="none"
                       stroke="#c43c2c"
                       strokeWidth={2.4}
-                      filter="url(#glow-usurp)"
-                      markerEnd="url(#arrow-usurp)"
+                      filter={`url(#glow-usurp-${mode})`}
+                      markerEnd={`url(#arrow-usurp-${mode})`}
                     />
-                    <text
-                      x={(x1 + x2) / 2 + 8}
-                      y={midY}
-                      className="fill-cinnabar"
-                      fontSize={10}
-                      fontFamily="var(--font-display), serif"
-                    >
-                      {edge.label}
-                    </text>
+                    {showLabel && (
+                      <text
+                        x={(x1 + x2) / 2 + 8}
+                        y={midY}
+                        className="fill-cinnabar"
+                        fontSize={10}
+                        fontFamily="var(--font-display), serif"
+                      >
+                        {edge.label}
+                      </text>
+                    )}
                   </g>
                 );
               }
@@ -175,30 +277,38 @@ export function GenealogyGraph({ focusId, onSelect }: GenealogyGraphProps) {
                     fill="none"
                     stroke={edge.style === "dashed" ? "#735e40" : "#3d3326"}
                     strokeWidth={edge.style === "solid" ? 2 : 1.5}
-                    strokeDasharray={edge.style === "dashed" ? "6 4" : undefined}
+                    strokeDasharray={
+                      edge.style === "dashed" ? "6 4" : undefined
+                    }
                   />
-                  <text
-                    x={(x1 + x2) / 2}
-                    y={midY - 4}
-                    textAnchor="middle"
-                    fontSize={9}
-                    fill="#8f754f"
-                    fontFamily="var(--font-body), sans-serif"
-                  >
-                    {edge.label}
-                  </text>
+                  {showLabel && (
+                    <text
+                      x={(x1 + x2) / 2}
+                      y={midY - 4}
+                      textAnchor="middle"
+                      fontSize={9}
+                      fill="#8f754f"
+                      fontFamily="var(--font-body), sans-serif"
+                    >
+                      {edge.label}
+                    </text>
+                  )}
                 </g>
               );
             })}
           </svg>
 
-          {LINEAGE_PERSONS.map((person) => (
+          {persons.map((person) => (
             <PersonNode
               key={person.id}
               person={person}
+              x={person.drawX}
+              y={person.drawY}
               scale={scale}
+              lod={lod}
               isFocus={person.id === focusId}
               inPath={pathIds.has(person.id)}
+              dimOutOfPath={mode === "full"}
               onSelect={onSelect}
             />
           ))}
@@ -208,20 +318,147 @@ export function GenealogyGraph({ focusId, onSelect }: GenealogyGraphProps) {
   );
 }
 
+/** 全屏全景层 */
+export function GenealogyFullscreen({
+  open,
+  focusId,
+  onSelect,
+  onClose,
+}: {
+  open: boolean;
+  focusId: LineageNodeId;
+  onSelect: (id: LineageNodeId) => void;
+  onClose: () => void;
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[80] flex flex-col bg-[rgba(48,42,28,0.45)] p-3 backdrop-blur-[2px] md:p-5"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.22 }}
+        >
+          <motion.div
+            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-ink-800/15 bg-[rgba(251,249,243,0.98)] shadow-[0_20px_60px_-20px_rgba(48,42,28,0.5)]"
+            initial={{ opacity: 0, y: 16, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.99 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <GenealogyGraph
+              focusId={focusId}
+              onSelect={onSelect}
+              mode="full"
+              onExitFullscreen={onClose}
+            />
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body
+  );
+}
+
 function PersonNode({
   person,
+  x,
+  y,
   scale,
+  lod,
   isFocus,
   inPath,
+  dimOutOfPath,
   onSelect,
 }: {
   person: LineagePerson;
+  x: number;
+  y: number;
   scale: number;
+  lod: LodLevel;
   isFocus: boolean;
   inPath: boolean;
+  dimOutOfPath: boolean;
   onSelect: (id: LineageNodeId) => void;
 }) {
   const dual = person.reigns.length > 1;
+  const dimmed = dimOutOfPath && !inPath && !isFocus;
+
+  if (lod === "dot") {
+    const size = (person.isEmperor ? 14 : 10) * scale;
+    return (
+      <motion.button
+        type="button"
+        onClick={() => onSelect(person.id)}
+        title={`${person.name}${person.templeName ? ` · ${person.templeName}` : ""}`}
+        className={`absolute rounded-full border-2 transition ${
+          isFocus
+            ? "border-cinnabar shadow-[0_0_0_3px_rgba(196,60,44,0.25)]"
+            : "border-[rgba(247,241,232,0.95)]"
+        } ${dimmed ? "opacity-25" : "opacity-100"}`}
+        style={{
+          left: (x + NODE_W / 2) * scale - size / 2,
+          top: (y + NODE_H / 2) * scale - size / 2,
+          width: size,
+          height: size,
+          background: person.accent,
+        }}
+        aria-label={person.name}
+      />
+    );
+  }
+
+  const shortLabel =
+    person.reigns[0]?.title ??
+    person.templeName?.replace(/^明/, "") ??
+    person.name.slice(0, 2);
+
+  if (lod === "short") {
+    return (
+      <motion.button
+        type="button"
+        onClick={() => onSelect(person.id)}
+        className={`absolute flex items-center justify-center border px-1 font-display transition ${
+          person.isEmperor ? "bg-ink-50/95" : "border-dashed bg-ink-100/80"
+        } ${
+          isFocus
+            ? "border-cinnabar shadow-[0_0_0_2px_rgba(196,60,44,0.2)]"
+            : inPath
+              ? "border-ink-700/40"
+              : "border-ink-800/15"
+        } ${dimmed ? "opacity-35" : ""}`}
+        style={{
+          left: x * scale,
+          top: y * scale,
+          width: NODE_W * scale,
+          height: 36 * scale,
+          fontSize: Math.max(10, 12 * scale),
+        }}
+        title={person.name}
+      >
+        <span
+          className="mr-1 inline-block h-2 w-2 shrink-0 rounded-full"
+          style={{ background: person.accent }}
+        />
+        <span className="truncate font-semibold text-ink-800">{shortLabel}</span>
+      </motion.button>
+    );
+  }
 
   return (
     <motion.button
@@ -229,19 +466,17 @@ function PersonNode({
       layout={false}
       onClick={() => onSelect(person.id)}
       className={`absolute flex flex-col items-stretch border text-left transition-shadow ${
-        person.isEmperor
-          ? "bg-ink-50/95"
-          : "border-dashed bg-ink-100/70"
+        person.isEmperor ? "bg-ink-50/95" : "border-dashed bg-ink-100/70"
       } ${
         isFocus
           ? "border-cinnabar shadow-[0_0_0_3px_rgba(196,60,44,0.2)]"
           : inPath
             ? "border-ink-700/40"
-            : "border-ink-800/15 opacity-40"
-      }`}
+            : "border-ink-800/15"
+      } ${dimmed ? "opacity-40" : ""}`}
       style={{
-        left: person.x * scale,
-        top: person.y * scale,
+        left: x * scale,
+        top: y * scale,
         width: NODE_W * scale,
         height: (dual ? NODE_H + 14 : NODE_H) * scale,
         transformOrigin: "top left",
@@ -249,10 +484,7 @@ function PersonNode({
       animate={{ scale: isFocus ? 1.03 : 1 }}
       transition={{ type: "spring", stiffness: 400, damping: 28 }}
     >
-      <div
-        className="h-1 shrink-0"
-        style={{ background: person.accent }}
-      />
+      <div className="h-1 shrink-0" style={{ background: person.accent }} />
       <div className="flex min-h-0 flex-1 flex-col justify-center px-1.5 py-1">
         <p
           className="truncate font-display font-bold text-ink-900"
@@ -314,7 +546,7 @@ function lightningPath(x1: number, y1: number, x2: number, y2: number) {
 
 function Legend() {
   return (
-    <div className="hidden flex-wrap items-center gap-3 text-[10px] text-ink-500 lg:flex">
+    <div className="hidden flex-wrap items-center gap-3 text-[10px] text-ink-500 sm:flex">
       <span className="inline-flex items-center gap-1">
         <span className="inline-block h-px w-4 bg-ink-800" />
         嫡长 / 直系
