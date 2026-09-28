@@ -218,7 +218,7 @@ export function GenealogyGraph({
 
   return (
     <div className={`flex h-full min-h-0 flex-col ${className}`}>
-      <div className="flex shrink-0 items-center justify-end gap-2 border-b border-ink-800/10 bg-[rgba(251,249,243,0.22)] px-3 py-1.5 md:px-4">
+      <div className="flex shrink-0 items-center justify-center gap-2 border-b border-ink-800/10 bg-[rgba(251,249,243,0.22)] px-3 py-1.5 md:px-4">
         {mode === "full" && <Legend />}
         {mode === "ego" && onRequestFullscreen && (
           <button
@@ -263,7 +263,7 @@ export function GenealogyGraph({
 
       <div
         ref={viewportRef}
-        className="scrollbar-timeline relative min-h-0 flex-1 cursor-grab overflow-auto bg-transparent [scrollbar-gutter:stable] active:cursor-grabbing"
+        className="scrollbar-timeline relative min-h-0 flex-1 cursor-grab overflow-auto bg-transparent select-none [scrollbar-gutter:stable] active:cursor-grabbing"
         onWheel={(e) => {
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
@@ -278,6 +278,8 @@ export function GenealogyGraph({
           if (t.closest("button, a, input, select, textarea")) return;
           const vp = viewportRef.current;
           if (!vp) return;
+          e.preventDefault();
+          window.getSelection()?.removeAllRanges();
           dragRef.current = {
             active: true,
             x: e.clientX,
@@ -291,6 +293,8 @@ export function GenealogyGraph({
           const drag = dragRef.current;
           const vp = viewportRef.current;
           if (!drag?.active || !vp) return;
+          e.preventDefault();
+          window.getSelection()?.removeAllRanges();
           vp.scrollLeft = drag.sl - (e.clientX - drag.x);
           vp.scrollTop = drag.st - (e.clientY - drag.y);
         }}

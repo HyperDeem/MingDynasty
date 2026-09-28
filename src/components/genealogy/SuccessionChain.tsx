@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import {
   SUCCESSION_CHAIN,
   getEmperorPerson,
@@ -12,6 +13,21 @@ interface SuccessionChainProps {
 }
 
 export function SuccessionChain({ activeId, onSelect }: SuccessionChainProps) {
+  const listRef = useRef<HTMLOListElement>(null);
+  const activeRef = useRef<HTMLLIElement>(null);
+
+  useEffect(() => {
+    const list = listRef.current;
+    const item = activeRef.current;
+    if (!list || !item) return;
+    const target =
+      item.offsetLeft - list.clientWidth / 2 + item.offsetWidth / 2;
+    list.scrollTo({
+      left: Math.max(0, target),
+      behavior: "smooth",
+    });
+  }, [activeId]);
+
   return (
     <div className="border-t border-ink-800/10 px-4 py-3 md:px-6">
       <div className="mb-2 flex items-baseline justify-between gap-2">
@@ -21,7 +37,10 @@ export function SuccessionChain({ activeId, onSelect }: SuccessionChainProps) {
         <p className="text-[10px] text-ink-400">明朝十六帝 · 英宗一人一席</p>
       </div>
 
-      <ol className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-timeline">
+      <ol
+        ref={listRef}
+        className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-timeline"
+      >
         {SUCCESSION_CHAIN.map((step) => {
           const person = getEmperorPerson(step.emperorId);
           const active = step.emperorId === activeId;
@@ -30,7 +49,11 @@ export function SuccessionChain({ activeId, onSelect }: SuccessionChainProps) {
               ? "正统/天顺"
               : person.reigns[0]?.title ?? "";
           return (
-            <li key={step.order} className="shrink-0">
+            <li
+              key={step.order}
+              ref={active ? activeRef : undefined}
+              className="shrink-0"
+            >
               <button
                 type="button"
                 onClick={() => onSelect(step.emperorId)}

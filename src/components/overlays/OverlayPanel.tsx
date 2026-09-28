@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface OverlayPanelProps {
@@ -19,6 +19,8 @@ interface OverlayPanelProps {
   className?: string;
 }
 
+const CLICK_MOVE_PX = 8;
+
 /**
  * 地图舞台上的轻量浮层：Esc / 关闭按钮收起；内容区撑满卡片高度
  */
@@ -32,6 +34,12 @@ export function OverlayPanel({
   children,
   className = "",
 }: OverlayPanelProps) {
+  const panelRef = useRef<HTMLElement>(null);
+  const outsideDownRef = useRef<{
+    x: number;
+    y: number;
+  } | null>(null);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -41,18 +49,52 @@ export function OverlayPanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  /** 点浮窗外关闭；拖地图（位移超阈值）不关闭 */
+  useEffect(() => {
+    if (!open) return;
+
+    const onPointerDown = (e: PointerEvent) => {
+      const panel = panelRef.current;
+      const target = e.target as Node | null;
+      if (!panel || !target) return;
+      if (panel.contains(target)) {
+        outsideDownRef.current = null;
+        return;
+      }
+      outsideDownRef.current = { x: e.clientX, y: e.clientY };
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      const down = outsideDownRef.current;
+      outsideDownRef.current = null;
+      if (!down) return;
+      const panel = panelRef.current;
+      const target = e.target as Node | null;
+      if (panel && target && panel.contains(target)) return;
+      const dist = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+      if (dist <= CLICK_MOVE_PX) onClose();
+    };
+
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("pointerup", onPointerUp, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("pointerup", onPointerUp, true);
+    };
+  }, [open, onClose]);
+
   const fromX = side === "right" ? 36 : -36;
   const wide = size === "wide";
 
   const sizeClass = wide
-    ? // 明显透见疆域：低不透明度 + 适中模糊（过强 blur 会糊成不透）
-      "w-[min(100%-1.25rem,34rem)] md:w-[min(54vw,40rem)] lg:w-[min(58vw,46rem)] bg-[rgba(251,249,243,0.48)] shadow-[0_16px_48px_-18px_rgba(48,42,28,0.28)] backdrop-blur-[6px]"
+    ? "w-[min(100%-1.25rem,34rem)] md:w-[min(54vw,40rem)] lg:w-[min(58vw,46rem)] bg-[rgba(251,249,243,0.48)] shadow-[0_16px_48px_-18px_rgba(48,42,28,0.28)] backdrop-blur-[6px]"
     : "w-[min(100%-1.5rem,26rem)] md:w-[min(44vw,30rem)] lg:w-[min(40vw,32rem)] bg-[rgba(251,249,243,0.94)] shadow-[0_12px_40px_-16px_rgba(48,42,28,0.35)] backdrop-blur-md";
 
   return (
     <AnimatePresence>
       {open && (
         <motion.aside
+          ref={panelRef}
           key={`overlay-${side}-${size}-${title}`}
           role="dialog"
           aria-modal="false"
