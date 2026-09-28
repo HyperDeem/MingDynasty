@@ -475,7 +475,7 @@ export function Timeline({
       className={`relative overflow-hidden border-t border-ink-800/10 bg-[rgba(251,249,243,0.94)] backdrop-blur-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cinnabar/35 ${
         interactionLocked
           ? "pointer-events-none cursor-default opacity-55"
-          : "cursor-pointer"
+          : "pointer-events-auto cursor-pointer"
       }`}
       onMouseEnter={() => {
         if (!interactionLocked) handleEnter();

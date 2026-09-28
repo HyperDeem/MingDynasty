@@ -138,7 +138,7 @@ export function OverlayPanel({
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: fromX * 0.55 }}
           transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
-          className={`pointer-events-auto absolute bottom-3 top-3 z-30 flex flex-col overflow-hidden rounded-md border border-ink-800/10 ${sizeClass} ${
+          className={`pointer-events-auto absolute bottom-3 top-3 z-50 flex flex-col overflow-hidden rounded-md border border-ink-800/10 ${sizeClass} ${
             side === "right" ? "right-3" : "left-3"
           } ${className}`}
         >

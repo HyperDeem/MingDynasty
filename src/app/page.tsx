@@ -151,19 +151,17 @@ export default function HomePage() {
       </div>
 
       <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-40">
-        <div className="pointer-events-auto">
-          <Timeline
-            activeEventId={highlightEventId}
-            activeEmperorId={emperorId}
-            activePeriodId={periodId}
-            highlightYearFrom={territorySnapshot.yearFrom}
-            highlightYearTo={territorySnapshot.yearTo}
-            interactionLocked={emperorId != null}
-            onSelectEvent={handleSelectEvent}
-            onSelectEmperor={handleSelectEmperor}
-            onSelectEra={handleSelectEra}
-          />
-        </div>
+        <Timeline
+          activeEventId={highlightEventId}
+          activeEmperorId={emperorId}
+          activePeriodId={periodId}
+          highlightYearFrom={territorySnapshot.yearFrom}
+          highlightYearTo={territorySnapshot.yearTo}
+          interactionLocked={emperorId != null}
+          onSelectEvent={handleSelectEvent}
+          onSelectEmperor={handleSelectEmperor}
+          onSelectEra={handleSelectEra}
+        />
       </footer>
     </div>
   );
