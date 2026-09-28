@@ -47,6 +47,8 @@ export function EmperorDrawer({
   const [archiveOpen, setArchiveOpen] = useState<ArchiveSection | null>(
     "card"
   );
+  /** 血缘页一旦打开过则保持挂载，避免反复进出会重绘抽搐 */
+  const [lineageMounted, setLineageMounted] = useState(false);
   /** 仅从关闭→打开时重置到简介；血缘内切换帝王不切页签 */
   const wasOpenRef = useRef(false);
 
@@ -57,13 +59,19 @@ export function EmperorDrawer({
         setTab("bio");
         setPanoramaOpen(false);
         setArchiveOpen("card");
+        setLineageMounted(false);
       }
       wasOpenRef.current = true;
     } else {
       wasOpenRef.current = false;
       setPanoramaOpen(false);
+      setLineageMounted(false);
     }
   }, [emperorId]);
+
+  useEffect(() => {
+    if (tab === "lineage") setLineageMounted(true);
+  }, [tab]);
 
   const handleSelectNode = useCallback(
     (id: LineageNodeId) => {
@@ -129,19 +137,15 @@ export function EmperorDrawer({
               ))}
             </div>
 
-            <AnimatePresence mode="wait">
-              <motion.div
-                // 血缘页保持挂载，避免点节点时整页淡入淡出造成抽搐
-                key={tab === "lineage" ? "lineage" : `${tab}-${activeEmperor}`}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="flex min-h-0 flex-1 flex-col overflow-hidden"
+            {/* 页签用显隐而非 AnimatePresence：半透明浮窗上 opacity 进出会透出地图造成闪烁 */}
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div
+                className={`flex min-h-0 flex-1 flex-col ${
+                  tab === "bio" ? "" : "hidden"
+                }`}
+                aria-hidden={tab !== "bio"}
               >
-                {tab === "bio" && (
-                  <div className="flex min-h-0 flex-1 flex-col">
-                    <div className="flex min-h-0 flex-1 flex-col px-3 py-3 md:px-4 md:py-4 lg:px-5 lg:py-5">
+                  <div className="flex min-h-0 flex-1 flex-col px-3 py-3 md:px-4 md:py-4 lg:px-5 lg:py-5">
                       <div className="flex shrink-0 gap-3 md:gap-4">
                         <EmperorPortrait
                           emperorId={activeEmperor}
@@ -241,23 +245,31 @@ export function EmperorDrawer({
                         </span>
                       </button>
                     </div>
-                  </div>
-                )}
+              </div>
 
-                {tab === "lineage" && focusId && (
-                  <div className="flex min-h-0 flex-1 flex-col">
-                    <GenealogyGraph
-                      focusId={focusId}
-                      onSelect={handleSelectNode}
-                      mode="ego"
-                      onRequestFullscreen={() => setPanoramaOpen(true)}
-                      className="min-h-0 flex-1"
-                    />
-                  </div>
-                )}
+              {lineageMounted && focusId && (
+                <div
+                  className={`min-h-0 flex-1 flex-col ${
+                    tab === "lineage" ? "flex" : "hidden"
+                  }`}
+                  aria-hidden={tab !== "lineage"}
+                >
+                  <GenealogyGraph
+                    focusId={focusId}
+                    onSelect={handleSelectNode}
+                    mode="ego"
+                    onRequestFullscreen={() => setPanoramaOpen(true)}
+                    className="min-h-0 flex-1"
+                  />
+                </div>
+              )}
 
-                {tab === "archive" && (
-                  <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2 scrollbar-timeline md:p-3">
+              <div
+                className={`min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2 scrollbar-timeline md:p-3 ${
+                  tab === "archive" ? "flex" : "hidden"
+                }`}
+                aria-hidden={tab !== "archive"}
+              >
                     <ArchiveThumb
                       eyebrow="身份档"
                       title={archivePerson.name}
@@ -298,10 +310,8 @@ export function EmperorDrawer({
                         onNavigate={handleSelectNode}
                       />
                     </ArchiveThumb>
-                  </div>
-                )}
-              </motion.div>
-            </AnimatePresence>
+              </div>
+            </div>
           </div>
         )}
       </OverlayPanel>

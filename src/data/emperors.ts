@@ -1,4 +1,5 @@
 import type { PeriodId } from "./ming-dynasty";
+import { toneForEmperorBand } from "./timeline-palette";
 
 /** 在位皇帝色带（连续色块，按年跨度比例渲染） */
 
@@ -36,8 +37,15 @@ export interface EmperorBand {
   periodIds: PeriodId[];
 }
 
+function band(
+  partial: Omit<EmperorBand, "color" | "accent">
+): EmperorBand {
+  const tone = toneForEmperorBand(partial.id, partial.eraLabel);
+  return { ...partial, color: tone.color, accent: tone.accent };
+}
+
 export const EMPEROR_BANDS: EmperorBand[] = [
-  {
+  band({
     id: "taizu",
     name: "朱元璋",
     templeName: "明太祖",
@@ -45,11 +53,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "洪武",
     startYear: 1368,
     endYear: 1398,
-    color: "#8b3a3a",
-    accent: "#c45c5c",
     periodIds: ["hongwu"],
-  },
-  {
+  }),
+  band({
     id: "huizong",
     name: "朱允炆",
     templeName: "明惠帝",
@@ -57,11 +63,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "建文",
     startYear: 1399,
     endYear: 1402,
-    color: "#6b5a45",
-    accent: "#9a8568",
     periodIds: ["jianwen"],
-  },
-  {
+  }),
+  band({
     id: "chengzu",
     name: "朱棣",
     templeName: "明成祖",
@@ -69,11 +73,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "永乐",
     startYear: 1402,
     endYear: 1424,
-    color: "#2d6a5a",
-    accent: "#4a9a82",
     periodIds: ["yongle"],
-  },
-  {
+  }),
+  band({
     id: "renzong",
     name: "朱高炽",
     templeName: "明仁宗",
@@ -81,11 +83,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "洪熙",
     startYear: 1425,
     endYear: 1425,
-    color: "#4a6b8a",
-    accent: "#6d92b5",
     periodIds: ["hongxi"],
-  },
-  {
+  }),
+  band({
     id: "xuanzong",
     name: "朱瞻基",
     templeName: "明宣宗",
@@ -93,11 +93,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "宣德",
     startYear: 1426,
     endYear: 1435,
-    color: "#3d7a6a",
-    accent: "#5a9e8a",
     periodIds: ["xuande"],
-  },
-  {
+  }),
+  band({
     id: "yingzong",
     name: "朱祁镇",
     templeName: "明英宗",
@@ -105,11 +103,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "正统",
     startYear: 1436,
     endYear: 1449,
-    color: "#7a5a3d",
-    accent: "#a87e55",
     periodIds: ["zhengtong"],
-  },
-  {
+  }),
+  band({
     id: "daizong",
     name: "朱祁钰",
     templeName: "明代宗",
@@ -117,11 +113,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "景泰",
     startYear: 1450,
     endYear: 1456,
-    color: "#5a4a6b",
-    accent: "#7e6a94",
     periodIds: ["jingtai"],
-  },
-  {
+  }),
+  band({
     id: "yingzong",
     name: "朱祁镇",
     templeName: "明英宗",
@@ -129,11 +123,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "天顺",
     startYear: 1457,
     endYear: 1464,
-    color: "#7a5a3d",
-    accent: "#a87e55",
     periodIds: ["tianshun"],
-  },
-  {
+  }),
+  band({
     id: "xianzong",
     name: "朱见深",
     templeName: "明宪宗",
@@ -141,11 +133,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "成化",
     startYear: 1465,
     endYear: 1487,
-    color: "#6b4a5a",
-    accent: "#946878",
     periodIds: ["chenghua"],
-  },
-  {
+  }),
+  band({
     id: "xiaozong",
     name: "朱祐樘",
     templeName: "明孝宗",
@@ -153,11 +143,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "弘治",
     startYear: 1488,
     endYear: 1505,
-    color: "#3d6b5a",
-    accent: "#5a9480",
     periodIds: ["hongzhi"],
-  },
-  {
+  }),
+  band({
     id: "wuzong",
     name: "朱厚照",
     templeName: "明武宗",
@@ -165,11 +153,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "正德",
     startYear: 1506,
     endYear: 1521,
-    color: "#8a5a3d",
-    accent: "#b87a55",
     periodIds: ["zhengde"],
-  },
-  {
+  }),
+  band({
     id: "shizong",
     name: "朱厚熜",
     templeName: "明世宗",
@@ -177,11 +163,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "嘉靖",
     startYear: 1522,
     endYear: 1566,
-    color: "#5a3d6b",
-    accent: "#7e5a94",
     periodIds: ["jiajing"],
-  },
-  {
+  }),
+  band({
     id: "muzong",
     name: "朱载垕",
     templeName: "明穆宗",
@@ -189,11 +173,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "隆庆",
     startYear: 1567,
     endYear: 1572,
-    color: "#3d5a7a",
-    accent: "#5a7ea0",
     periodIds: ["longqing"],
-  },
-  {
+  }),
+  band({
     id: "shenzong",
     name: "朱翊钧",
     templeName: "明神宗",
@@ -201,11 +183,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "万历",
     startYear: 1573,
     endYear: 1620,
-    color: "#6b3d3d",
-    accent: "#945555",
     periodIds: ["wanli"],
-  },
-  {
+  }),
+  band({
     id: "guangzong",
     name: "朱常洛",
     templeName: "明光宗",
@@ -213,11 +193,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "泰昌",
     startYear: 1620,
     endYear: 1620,
-    color: "#5a5a4a",
-    accent: "#7a7a65",
     periodIds: ["taichang"],
-  },
-  {
+  }),
+  band({
     id: "xizong",
     name: "朱由校",
     templeName: "明熹宗",
@@ -225,11 +203,9 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "天启",
     startYear: 1621,
     endYear: 1627,
-    color: "#4a4a5a",
-    accent: "#6a6a7a",
     periodIds: ["tianqi"],
-  },
-  {
+  }),
+  band({
     id: "sizong",
     name: "朱由检",
     templeName: "明思宗",
@@ -237,10 +213,8 @@ export const EMPEROR_BANDS: EmperorBand[] = [
     eraLabel: "崇祯",
     startYear: 1628,
     endYear: 1644,
-    color: "#5a3a3a",
-    accent: "#8a5a5a",
     periodIds: ["chongzhen"],
-  },
+  }),
 ];
 
 /** 英宗复位段与正统段共用 id，筛选时合并同一皇帝 */

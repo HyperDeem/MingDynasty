@@ -5,6 +5,7 @@
 
 import type { PeriodId } from "./ming-dynasty";
 import type { EmperorId } from "./emperors";
+import { toneForEmperorBand } from "./timeline-palette";
 
 /** 谱系节点：含皇帝与关键非帝亲族（如懿文太子、兴献王） */
 export type LineageNodeId =
@@ -80,7 +81,7 @@ export interface InheritanceLink {
   note?: string;
 }
 
-export const LINEAGE_PERSONS: LineagePerson[] = [
+const LINEAGE_PERSONS_RAW: LineagePerson[] = [
   {
     id: "taizu",
     name: "朱元璋",
@@ -386,6 +387,16 @@ export const LINEAGE_PERSONS: LineagePerson[] = [
     accent: "#6b4545",
   },
 ];
+
+function withTimelineTone(p: LineagePerson): LineagePerson {
+  if (!p.isEmperor) return p;
+  const era = p.reigns[0]?.title;
+  const tone = toneForEmperorBand(p.id, era);
+  return { ...p, color: tone.color, accent: tone.accent };
+}
+
+export const LINEAGE_PERSONS: LineagePerson[] =
+  LINEAGE_PERSONS_RAW.map(withTimelineTone);
 
 /** 血缘连线（谁是谁的儿子 / 弟弟） */
 export const BLOOD_EDGES: BloodEdge[] = [
