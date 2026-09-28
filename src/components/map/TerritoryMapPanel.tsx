@@ -65,7 +65,7 @@ export function TerritoryMapPanel({
     const items: { id: string; label: string; color: string }[] = [
       {
         id: "core",
-        label: REGION_STYLE.core.label,
+        label: snapshot.coreLegendLabel,
         color: REGION_STYLE.core.fill,
       },
     ];
@@ -81,7 +81,7 @@ export function TerritoryMapPanel({
       items.push({ id: region, label: style.label, color: style.fill });
     }
     return items;
-  }, [extras]);
+  }, [extras, snapshot.coreLegendLabel]);
 
   const shellClass =
     className ??
@@ -136,17 +136,17 @@ export function TerritoryMapPanel({
             previousExtras={previousExtras}
             capitals={capitals}
             crossfade={crossfade}
-            className="absolute inset-0 h-full w-full min-h-[320px]"
+            className="absolute inset-0 h-full w-full min-h-[320px] overflow-hidden"
             onFeatureHover={(name) => setHoverName(name)}
             onReady={setMapApi}
           />
         )}
 
-        {/* 疆域快照：置于舞台左下，避开左上「全景明朝」顶栏 */}
+        {/* 疆域快照：舞台模式抬高，避开底部浮层时间轴 */}
         <div
           className={`pointer-events-none absolute z-10 w-[min(88vw,16.5rem)] rounded-md border border-[#e3dcca] bg-[rgba(251,249,243,0.92)] px-3 py-2.5 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-[8px] md:w-[18.5rem] ${
             isStage
-              ? "bottom-3 left-3 md:bottom-4 md:left-5"
+              ? "bottom-[5.75rem] left-3 md:bottom-[6.25rem] md:left-5"
               : "left-3 top-3 md:left-4 md:top-3.5"
           }`}
         >
@@ -181,11 +181,10 @@ export function TerritoryMapPanel({
             {snapshot.description}
           </p>
 
-          {hoverName && (
-            <p className="mt-1.5 border-t border-dashed border-[#e3dcca] pt-1.5 font-display text-[11px] tracking-wide text-[#b6584f]">
-              {hoverName}
-            </p>
-          )}
+          {/* 固定占位，避免悬停省份名时卡片高度突变 */}
+          <p className="mt-1.5 min-h-[1.75rem] border-t border-dashed border-[#e3dcca] pt-1.5 font-display text-[11px] leading-none tracking-wide text-[#b6584f]">
+            {hoverName ?? "\u00a0"}
+          </p>
         </div>
 
         {/* 图例 */}
@@ -250,7 +249,11 @@ export function TerritoryMapPanel({
         </div>
 
         {crossfade < 0.99 && previousCoreProvinces && (
-          <div className="pointer-events-none absolute left-3 right-14 top-[calc(100%-5.75rem)] z-10 h-0.5 overflow-hidden rounded bg-[#e3dcca] md:left-4">
+          <div
+            className={`pointer-events-none absolute left-3 right-14 z-10 h-0.5 overflow-hidden rounded bg-[#e3dcca] md:left-4 ${
+              isStage ? "bottom-[11.5rem]" : "top-[calc(100%-5.75rem)]"
+            }`}
+          >
             <div
               className="h-full bg-[#3f6f64]/70 transition-[width] duration-75"
               style={{ width: `${crossfade * 100}%` }}
@@ -258,17 +261,12 @@ export function TerritoryMapPanel({
           </div>
         )}
 
-        <p className="pointer-events-none absolute bottom-[5.35rem] right-3 z-10 text-[9.5px] text-[rgba(79,84,76,0.62)] md:right-4">
-          中国省级边界本地加载 · 历史疆域空间示意
-          {territory && (
-            <span className="ml-2 tabular-nums">
-              · 约 {territory.areaWanKm2} 万 km²
-            </span>
-          )}
-        </p>
-
         {/* 底部快照轴 */}
-        <div className="absolute bottom-3 left-1/2 z-20 w-[min(980px,calc(100%-28px))] -translate-x-1/2 rounded-[7px] border border-[#d4cab2] bg-[rgba(251,249,243,0.94)] px-3 py-2 shadow-[0_4px_18px_-8px_rgba(48,42,28,0.22)] backdrop-blur-[10px]">
+        <div
+          className={`absolute left-1/2 z-20 w-[min(980px,calc(100%-28px))] -translate-x-1/2 rounded-[7px] border border-[#d4cab2] bg-[rgba(251,249,243,0.94)] px-3 py-2 shadow-[0_4px_18px_-8px_rgba(48,42,28,0.22)] backdrop-blur-[10px] ${
+            isStage ? "bottom-[5.75rem] md:bottom-[6.25rem]" : "bottom-3"
+          }`}
+        >
           <div className="flex items-end gap-1 overflow-x-auto pb-0.5">
             {MING_TERRITORY_SNAPSHOTS.map((s) => {
               const active = s.id === snapshot.id;

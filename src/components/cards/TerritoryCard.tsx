@@ -1,6 +1,7 @@
 "use client";
 
 import type { TerritoryData } from "@/data/ming-dynasty";
+import { resolveTerritorySnapshot } from "@/data/ming-territory";
 
 interface TerritoryCardProps {
   territory: TerritoryData;
@@ -8,6 +9,10 @@ interface TerritoryCardProps {
 
 /** 疆域数据摘要卡（主交互地图见上方 TerritoryMapPanel） */
 export function TerritoryCard({ territory }: TerritoryCardProps) {
+  const coreLabel = resolveTerritorySnapshot(
+    Number(territory.peakYear)
+  ).coreLegendLabel;
+
   return (
     <article className="flex h-full flex-col border border-ink-800/10 bg-ink-50/60 p-5 backdrop-blur-sm md:p-6">
       <p className="font-display text-[10px] tracking-[0.3em] text-cinnabar">
@@ -26,7 +31,7 @@ export function TerritoryCard({ territory }: TerritoryCardProps) {
           value={`${territory.areaWanKm2}`}
           unit="万 km²"
         />
-        <Stat label="两京十三省" value={`${territory.provinces}`} unit="省" />
+        <Stat label={coreLabel} value={`${territory.provinces}`} unit="省" />
       </div>
 
       <p className="mt-3 text-xs text-ink-500">

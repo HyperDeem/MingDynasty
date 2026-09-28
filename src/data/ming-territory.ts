@@ -31,6 +31,11 @@ export interface MingTerritorySnapshotMeta {
   path: string;
   /** 本快照包含的特殊区域（用于 UI 提示） */
   regions: MingTerritoryRegionId[];
+  /**
+   * 地图图例「核心高亮区」名称（随建置变化，勿一律写两京十三省）
+   * 洪武单京、永乐另有交趾叠层、明末辽东已失等情形各自表述
+   */
+  coreLegendLabel: string;
 }
 
 /**
@@ -48,6 +53,7 @@ export const MING_TERRITORY_SNAPSHOTS: MingTerritorySnapshotMeta[] = [
       "《明史·地理志》：洪武初建都江表，革元中书省，置十三布政使司，分领天下府州县及羁縻诸司；又置都司卫所领番汉诸军。是时京师在应天，交趾布政司、奴儿干都司皆未建置。",
     path: "/geojson/ming/1368-hongwu.json",
     regions: ["core", "northwest"],
+    coreLegendLabel: "京师与十三布政司",
   },
   {
     id: "1420-yongle-peak",
@@ -59,6 +65,7 @@ export const MING_TERRITORY_SNAPSHOTS: MingTerritorySnapshotMeta[] = [
       "《明史·地理志》：成祖定都北京，以北平为直隶，增设贵州、交趾二布政使司。永乐七年置奴儿干都司；《敕修奴儿干永宁寺碑记》载其境「东濒海，西接兀良哈，南邻朝鲜，北至奴儿干北海」。",
     path: "/geojson/ming/1420-yongle-peak.json",
     regions: ["core", "jiaozhi", "nurgan", "northwest"],
+    coreLegendLabel: "两京与腹里行省",
   },
   {
     id: "1435-post-jiaozhi",
@@ -70,6 +77,7 @@ export const MING_TERRITORY_SNAPSHOTS: MingTerritorySnapshotMeta[] = [
       "《明史·地理志》：仁、宣之际，南交屡叛，旋复弃之外徼。宣德二年罢交趾布政使司。腹里之制，为京师、南京二直隶与十三布政使司。",
     path: "/geojson/ming/1435-post-jiaozhi.json",
     regions: ["core", "nurgan", "northwest"],
+    coreLegendLabel: "两京十三省",
   },
   {
     id: "1450-post-tumu",
@@ -81,6 +89,7 @@ export const MING_TERRITORY_SNAPSHOTS: MingTerritorySnapshotMeta[] = [
       "《明史·地理志》：终明之世，为直隶者二——京师、南京；为布政使司者十三。边陲要地称重镇者九：辽东、蓟州、宣府、大同、榆林、宁夏、甘肃、太原、固原，皆分统卫所关堡。",
     path: "/geojson/ming/1450-post-tumu.json",
     regions: ["core", "northwest"],
+    coreLegendLabel: "两京十三省",
   },
   {
     id: "1582-wanli",
@@ -92,6 +101,7 @@ export const MING_TERRITORY_SNAPSHOTS: MingTerritorySnapshotMeta[] = [
       "《明史·地理志》所载两京十三布政使司建置如故；北边仍以辽东、蓟州、宣府、大同、榆林、宁夏、甘肃、太原、固原九镇分统卫所关堡，为明代边防之常制。",
     path: "/geojson/ming/1582-wanli.json",
     regions: ["core", "northwest", "maritime"],
+    coreLegendLabel: "两京十三省",
   },
   {
     id: "1644-fall",
@@ -103,6 +113,7 @@ export const MING_TERRITORY_SNAPSHOTS: MingTerritorySnapshotMeta[] = [
       "《明史》本纪及《地理志》辽东诸卫所载：自天启间沈阳、辽阳相继失守，辽东都司故地多为后金所据。内地名义仍称两京十三布政使司，北边重镇残缺，防线收缩于山海关一带。",
     path: "/geojson/ming/1644-fall.json",
     regions: ["core"],
+    coreLegendLabel: "内地行省（辽东已失）",
   },
 ];
 

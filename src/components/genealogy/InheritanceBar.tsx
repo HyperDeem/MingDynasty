@@ -21,19 +21,19 @@ export function InheritanceBar({ emperorId, onNavigate }: InheritanceBarProps) {
   const { prev, next } = getInheritanceComparison(emperorId);
 
   return (
-    <div className="border-t border-ink-800/10 bg-[rgba(243,239,228,0.35)] px-4 py-3 md:px-6">
-      <p className="mb-2 font-display text-[10px] tracking-[0.25em] text-ink-400">
-        继承逻辑对比
+    <div className="flex min-h-[18rem] flex-col bg-[rgba(243,239,228,0.28)] px-3 py-4 md:min-h-[22rem] md:px-5 md:py-5">
+      <p className="mb-3 text-center font-display text-[10px] tracking-[0.28em] text-ink-400">
+        继承逻辑
       </p>
 
-      <div className="grid gap-2 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
+      <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-3 md:grid-cols-[1fr_minmax(7.5rem,0.85fr)_1fr] md:gap-4">
         <SideCard
           side="prev"
           disabled={!prev}
           onClick={() => prev && onNavigate(prev.person.id)}
         >
           {prev ? (
-            <PersonBlock
+            <NeighborBlock
               emperorId={
                 isEmperorId(prev.person.id) ? prev.person.id : null
               }
@@ -42,35 +42,32 @@ export function InheritanceBar({ emperorId, onNavigate }: InheritanceBarProps) {
               label="上一任"
               kinship={prev.kinship}
               modeLabel={prev.modeLabel}
-              note={prev.link.note}
-              align="left"
             />
           ) : (
-            <p className="text-sm text-ink-400">开国 · 无上一任</p>
+            <EmptySlot label="上一任" hint="开国 · 无上一任" />
           )}
         </SideCard>
 
         <motion.div
           layout
-          className="flex min-w-[9rem] flex-col items-center justify-center border border-cinnabar/30 bg-cinnabar/[0.06] px-3 py-3 text-center"
+          className="flex flex-col items-center justify-center border border-cinnabar/35 bg-cinnabar/[0.07] px-3 py-4 text-center md:py-5"
         >
-          <p className="text-[10px] tracking-wider text-cinnabar">当前选中</p>
+          <p className="font-display text-[10px] tracking-[0.22em] text-cinnabar">
+            当前
+          </p>
           <EmperorPortrait
             emperorId={emperorId}
             name={current.name}
             size="sm"
-            className="mt-2 !h-[4.5rem] !w-[3.4rem]"
+            className="mt-3 !h-[5.5rem] !w-[4.1rem] md:!h-[6.5rem] md:!w-[4.85rem]"
           />
-          <p className="mt-2 font-display text-base font-bold text-ink-900">
+          <p className="mt-3 font-display text-lg font-bold tracking-wide text-ink-900 md:text-xl">
             {displayReignHonorific(current)}
           </p>
-          <p className="text-sm text-ink-600">{current.name}</p>
-          <p className="mt-1 text-[10px] text-ink-400">
-            {current.templeName}
-            {current.throneOrder != null && ` · 第 ${current.throneOrder} 任`}
-          </p>
-          {current.reigns.length > 1 && (
-            <p className="mt-1 text-[10px] text-cinnabar">一人双年号</p>
+          {current.throneOrder != null && (
+            <p className="mt-1 text-[11px] text-ink-400">
+              第 {current.throneOrder} 任
+            </p>
           )}
         </motion.div>
 
@@ -80,7 +77,7 @@ export function InheritanceBar({ emperorId, onNavigate }: InheritanceBarProps) {
           onClick={() => next && onNavigate(next.person.id)}
         >
           {next ? (
-            <PersonBlock
+            <NeighborBlock
               emperorId={
                 isEmperorId(next.person.id) ? next.person.id : null
               }
@@ -89,77 +86,23 @@ export function InheritanceBar({ emperorId, onNavigate }: InheritanceBarProps) {
               label="下一任"
               kinship={next.kinship}
               modeLabel={next.modeLabel}
-              note={next.link.note}
-              align="right"
             />
           ) : (
-            <p className="text-sm text-ink-400">明祚终结 · 无下一任</p>
+            <EmptySlot label="下一任" hint="明祚终结 · 无下一任" />
           )}
         </SideCard>
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center justify-center gap-2 font-display text-xs text-ink-600">
-        {prev && isEmperorId(prev.person.id) && (
-          <button
-            type="button"
-            onClick={() => onNavigate(prev.person.id)}
-            className="inline-flex items-center gap-1.5 border border-ink-800/10 bg-ink-50/80 px-2 py-1 transition-colors hover:border-cinnabar/30 hover:text-cinnabar"
-          >
-            <EmperorPortrait
-              emperorId={prev.person.id}
-              name={prev.person.name}
-              size="sm"
-              className="!h-7 !w-5"
-            />
-            {displayReignHonorific(prev.person)}
-            <span className="text-[10px] text-ink-400">
-              [{shortKinship(prev.kinship)}]
-            </span>
-          </button>
-        )}
-        <span className="text-ink-300">◄─────</span>
-        <span className="inline-flex items-center gap-1.5 border border-cinnabar/25 bg-cinnabar/[0.07] px-2.5 py-1 font-bold text-cinnabar">
-          <EmperorPortrait
-            emperorId={emperorId}
-            name={current.name}
-            size="sm"
-            className="!h-7 !w-5"
-          />
-          当前：{displayReignHonorific(current)}
-        </span>
-        <span className="text-ink-300">─────►</span>
-        {next && isEmperorId(next.person.id) && (
-          <button
-            type="button"
-            onClick={() => onNavigate(next.person.id)}
-            className="inline-flex items-center gap-1.5 border border-ink-800/10 bg-ink-50/80 px-2 py-1 transition-colors hover:border-cinnabar/30 hover:text-cinnabar"
-          >
-            <EmperorPortrait
-              emperorId={next.person.id}
-              name={next.person.name}
-              size="sm"
-              className="!h-7 !w-5"
-            />
-            {displayReignHonorific(next.person)}
-            <span className="text-[10px] text-ink-400">
-              [{shortKinship(next.kinship)}]
-            </span>
-          </button>
-        )}
       </div>
     </div>
   );
 }
 
-function PersonBlock({
+function NeighborBlock({
   emperorId,
   name,
   honorific,
   label,
   kinship,
   modeLabel,
-  note,
-  align,
 }: {
   emperorId: EmperorId | null;
   name: string;
@@ -167,64 +110,54 @@ function PersonBlock({
   label: string;
   kinship: string;
   modeLabel: string;
-  note?: string;
-  align: "left" | "right";
 }) {
-  const row =
-    align === "right"
-      ? "flex flex-row-reverse items-start gap-2.5"
-      : "flex items-start gap-2.5";
-
   return (
-    <div className={row}>
+    <div className="flex h-full flex-col items-center justify-center gap-3 px-1 py-1 text-center">
+      <p className="font-display text-[10px] tracking-[0.2em] text-ink-400">
+        {label}
+      </p>
       {emperorId && (
         <EmperorPortrait
           emperorId={emperorId}
           name={name}
           size="sm"
-          className="!h-16 !w-12 shrink-0"
+          className="!h-[5.25rem] !w-[3.9rem] md:!h-[6.25rem] md:!w-[4.65rem]"
         />
       )}
-      <div className="min-w-0 flex-1">
-        <p className="text-[10px] tracking-wider text-ink-400">{label}</p>
-        <p className="mt-1 font-display text-sm font-bold text-ink-800">
-          {honorific}
-          <span className="ml-1 font-normal text-ink-500">（{name}）</span>
-        </p>
-        <dl className="mt-2 space-y-1 text-[11px]">
-          <div className="flex gap-2">
-            <dt className="shrink-0 text-ink-400">血缘关系</dt>
-            <dd className="text-ink-700">{kinship}</dd>
-          </div>
-          <div className="flex gap-2">
-            <dt className="shrink-0 text-ink-400">继承方式</dt>
-            <dd className="text-ink-700">{modeLabel}</dd>
-          </div>
-        </dl>
-        {note && (
-          <p className="mt-1.5 text-[10px] leading-relaxed text-ink-400">
-            {note}
-          </p>
-        )}
-      </div>
+      <p className="font-display text-base font-bold tracking-wide text-ink-900 md:text-lg">
+        {honorific}
+      </p>
+      <dl className="mt-0.5 w-full max-w-[11rem] space-y-2 text-left text-[12px] md:text-[13px]">
+        <div className="flex items-baseline justify-between gap-3 border-b border-ink-800/8 pb-1.5">
+          <dt className="shrink-0 text-[10px] tracking-wider text-ink-400">
+            血缘
+          </dt>
+          <dd className="text-right font-medium text-ink-800">{kinship}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="shrink-0 text-[10px] tracking-wider text-ink-400">
+            继承
+          </dt>
+          <dd className="text-right font-medium text-ink-800">{modeLabel}</dd>
+        </div>
+      </dl>
     </div>
   );
 }
 
-function shortKinship(k: string) {
-  if (k.includes("堂兄")) return "堂兄";
-  if (k.includes("嫡长")) return "父子";
-  if (k.includes("第三子") || k.includes("长子") || k.includes("第五子"))
-    return "父子";
-  if (k.includes("弟")) return "兄弟";
-  if (k.includes("叔侄")) return "叔侄";
-  if (k.includes("太孙")) return "祖孙";
-  return k.slice(0, 4);
+function EmptySlot({ label, hint }: { label: string; hint: string }) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-2 py-6 text-center">
+      <p className="font-display text-[10px] tracking-[0.2em] text-ink-400">
+        {label}
+      </p>
+      <p className="text-sm text-ink-400">{hint}</p>
+    </div>
+  );
 }
 
 function SideCard({
   children,
-  side,
   disabled,
   onClick,
 }: {
@@ -238,11 +171,11 @@ function SideCard({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`border border-ink-800/10 bg-[rgba(251,249,243,0.55)] px-3 py-3 text-left transition-colors ${
+      className={`min-h-[14rem] border border-ink-800/10 bg-[rgba(251,249,243,0.55)] px-3 py-4 transition-colors md:min-h-0 md:py-5 ${
         disabled
-          ? "cursor-default opacity-60"
-          : "hover:border-cinnabar/30 hover:bg-ink-50/80"
-      } ${side === "next" ? "md:text-right" : ""}`}
+          ? "cursor-default opacity-55"
+          : "hover:border-cinnabar/35 hover:bg-ink-50/75"
+      }`}
     >
       {children}
     </button>

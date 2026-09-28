@@ -24,9 +24,9 @@ export function EmperorArchiveCard({ emperorId }: EmperorArchiveCardProps) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className="bg-[rgba(251,249,243,0.42)] px-3 py-3 md:px-4 md:py-4"
+      className="flex max-h-[min(62vh,34rem)] flex-col bg-[rgba(251,249,243,0.42)] px-3 py-3 md:px-4 md:py-4"
     >
-      <div className="flex gap-3 md:gap-4">
+      <div className="flex shrink-0 gap-3 md:gap-4">
         <EmperorPortrait
           emperorId={emperorId}
           name={person.name}
@@ -63,7 +63,7 @@ export function EmperorArchiveCard({ emperorId }: EmperorArchiveCardProps) {
       </div>
 
       {emperorId === "yingzong" && (
-        <div className="mt-3 border border-cinnabar/20 bg-cinnabar/[0.04] px-3 py-2 text-xs leading-relaxed text-ink-600">
+        <div className="mt-3 shrink-0 border border-cinnabar/20 bg-cinnabar/[0.04] px-3 py-2 text-xs leading-relaxed text-ink-600">
           <span className="font-display font-medium text-cinnabar">
             一人双年号
           </span>
@@ -78,15 +78,20 @@ export function EmperorArchiveCard({ emperorId }: EmperorArchiveCardProps) {
       )}
 
       {events.length > 0 && (
-        <div className="mt-4">
-          <p className="font-display text-[10px] tracking-[0.2em] text-ink-400">
-            在位相关事件
-          </p>
-          <ul className="mt-2 space-y-2">
-            {events.slice(0, 5).map((ev) => (
+        <div className="mt-4 flex min-h-0 flex-1 flex-col">
+          <div className="flex shrink-0 items-baseline justify-between gap-2">
+            <p className="font-display text-[10px] tracking-[0.2em] text-ink-400">
+              在位相关事件
+            </p>
+            <p className="text-[10px] tabular-nums text-ink-300">
+              共 {events.length} 条
+            </p>
+          </div>
+          <ul className="scrollbar-timeline mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
+            {events.map((ev) => (
               <li
                 key={ev.id}
-                className="flex flex-wrap items-baseline justify-between gap-2 border-b border-ink-800/5 pb-2 text-sm"
+                className="flex flex-wrap items-baseline justify-between gap-2 border-b border-ink-800/5 pb-2 text-sm last:border-b-0"
               >
                 <span className="font-medium text-ink-800">{ev.title}</span>
                 <span className="text-xs tabular-nums text-ink-400">

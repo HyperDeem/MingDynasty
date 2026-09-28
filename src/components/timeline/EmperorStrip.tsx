@@ -1,11 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  getEmperorDisplayRange,
-  type EmperorBand,
-  type EmperorId,
-} from "@/data/emperors";
+import { motion } from "framer-motion";
+import { type EmperorBand, type EmperorId } from "@/data/emperors";
 import type { PeriodId } from "@/data/ming-dynasty";
 
 export interface BandLayout {
@@ -58,11 +54,6 @@ export function EmperorStrip({
   onHover,
   onSelect,
 }: EmperorStripProps) {
-  const hovered =
-    hoveredId != null
-      ? layouts.find((l) => bandKey(l.band) === hoveredId)
-      : undefined;
-
   const inRangeLayouts = layouts.filter((l) =>
     overlapsYearRange(l.band, highlightYearFrom, highlightYearTo)
   );
@@ -82,7 +73,6 @@ export function EmperorStrip({
   };
 
   const focusLayouts = layouts.filter((l) => isFocusBand(l.band));
-  const tipLayout = hovered ?? focusLayouts[0] ?? inRangeLayouts[0];
 
   /** 连续区间托底：从第一个到最后一个相交色带 */
   const rangeBracket =
@@ -139,7 +129,7 @@ export function EmperorStrip({
             <button
               key={key}
               type="button"
-              title={`${band.displayName} · ${band.eraLabel}（${getEmperorDisplayRange(band)}）· 点击打开谱系`}
+              aria-label={`${band.eraLabel} · ${band.displayName}`}
               onMouseEnter={() => onHover(key)}
               onMouseLeave={() => onHover(null)}
               onFocus={() => onHover(key)}
@@ -181,10 +171,22 @@ export function EmperorStrip({
                   aria-hidden
                 />
               )}
-              {showEraLabels && (
+              {(isHovered ||
+                isFocus ||
+                (showEraLabels && size >= 1.2)) && (
                 <span
-                  className={`pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 truncate px-0.5 text-center font-display text-[10px] font-medium leading-none drop-shadow md:text-[11px] ${
-                    lit ? "text-white/95" : "text-white/55"
+                  className={`pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 px-0.5 text-center font-display font-medium leading-none drop-shadow ${
+                    isHovered || size >= 2.5 ? "truncate" : ""
+                  } ${
+                    compact
+                      ? "text-[9px] md:text-[10px]"
+                      : "text-[10px] md:text-[11px]"
+                  } ${
+                    isHovered || isFocus
+                      ? "text-white"
+                      : lit
+                        ? "text-white/95"
+                        : "text-white/55"
                   }`}
                 >
                   {band.eraLabel}
@@ -215,39 +217,6 @@ export function EmperorStrip({
           <div className="absolute left-0 top-0 h-1.5 w-px bg-ink-800/30" />
           <div className="absolute right-0 top-0 h-1.5 w-px bg-ink-800/30" />
         </div>
-      )}
-
-      {!compact && tipLayout && (
-        <AnimatePresence>
-          <motion.div
-            key={`tip-${bandKey(tipLayout.band)}`}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="pointer-events-none absolute bottom-full z-40 mb-2 max-w-[12rem] -translate-x-1/2"
-            style={{
-              left: `${tipLayout.offset + tipLayout.size / 2}%`,
-            }}
-          >
-            <div className="rounded border border-ink-800/10 bg-ink-900/92 px-2.5 py-1.5 shadow-lg backdrop-blur-sm">
-              <p className="font-display text-[12px] font-medium text-ink-50">
-                {tipLayout.band.eraLabel}
-                <span className="ml-1.5 text-[11px] font-normal text-ink-300">
-                  {tipLayout.band.displayName.replace(/（复位）/, "")}
-                </span>
-              </p>
-              <p className="mt-0.5 text-[10px] tabular-nums text-ink-300">
-                {getEmperorDisplayRange(tipLayout.band)}
-              </p>
-              {hovered && (
-                <p className="mt-0.5 text-[10px] text-ink-400">
-                  点击查看血缘树与帝位链
-                </p>
-              )}
-            </div>
-          </motion.div>
-        </AnimatePresence>
       )}
     </div>
   );

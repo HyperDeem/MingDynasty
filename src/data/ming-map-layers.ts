@@ -70,7 +70,8 @@ export const REGION_STYLE: Record<
     fill: "#3f6f64",
     stroke: "#2f554d",
     opacity: 0.28,
-    label: "两京十三省",
+    /** 回退文案；界面优先用快照的 coreLegendLabel */
+    label: "核心疆域",
   },
   jiaozhi: {
     fill: "#4f8a7d",

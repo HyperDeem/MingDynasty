@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -167,32 +167,56 @@ export function GenealogyGraph({
     ),
   };
 
-  /** 仅在焦点切换时滚到中心；不跟缩放/视口抖动挂钩 */
+  /** 将当前焦点皇帝滚到视口中心 */
+  const scrollFocusIntoView = (behavior: ScrollBehavior = "auto") => {
+    const vp = viewportRef.current;
+    const person = layoutRef.current.persons.get(focusId);
+    if (!vp || !person) return;
+    const s = scaleRef.current;
+    const { offsetX: ox, offsetY: oy } = layoutRef.current;
+    const nodeH =
+      (personById.get(focusId)?.reigns.length ?? 0) > 1
+        ? NODE_H + 14
+        : NODE_H;
+    const targetX =
+      ox + person.drawX * s - vp.clientWidth / 2 + (NODE_W * s) / 2;
+    const targetY =
+      oy + person.drawY * s - vp.clientHeight / 2 + (nodeH * s) / 2;
+    vp.scrollTo({
+      left: Math.max(0, targetX),
+      top: Math.max(0, targetY),
+      behavior,
+    });
+  };
+
+  /** 焦点切换 / 模式切换时居中 */
   useEffect(() => {
-    const t = window.setTimeout(() => {
-      const vp = viewportRef.current;
-      const person = layoutRef.current.persons.get(focusId);
-      if (!vp || !person) return;
-      const s = scaleRef.current;
-      const { offsetX: ox, offsetY: oy } = layoutRef.current;
-      const targetX =
-        ox + person.drawX * s - vp.clientWidth / 2 + (NODE_W * s) / 2;
-      const targetY =
-        oy + person.drawY * s - vp.clientHeight / 2 + (NODE_H * s) / 2;
-      vp.scrollTo({
-        left: Math.max(0, targetX),
-        top: Math.max(0, targetY),
-        behavior: "auto",
-      });
-    }, 40);
+    const t = window.setTimeout(() => scrollFocusIntoView("auto"), 40);
     return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅跟焦点与模式
   }, [focusId, mode]);
+
+  /**
+   * 用户缩放：以选中皇帝为焦点重新锚定视口（布局提交后立刻校正，避免先偏后跳）
+   */
+  const zoomPendingRef = useRef(false);
+  useLayoutEffect(() => {
+    if (!zoomPendingRef.current) return;
+    zoomPendingRef.current = false;
+    scrollFocusIntoView("auto");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userScale, scale, offsetX, offsetY]);
 
   const minUser = mode === "ego" ? 0.75 : 0.7;
   const maxUser = mode === "ego" ? 1.45 : 2.4;
   const displayPct = Math.round(
     mode === "ego" ? userScale * 100 : scale * 100
   );
+
+  const nudgeScale = (delta: number) => {
+    zoomPendingRef.current = true;
+    setUserScale((s) => Math.min(maxUser, Math.max(minUser, s + delta)));
+  };
 
   const dragRef = useRef<{
     active: boolean;
@@ -203,21 +227,23 @@ export function GenealogyGraph({
   } | null>(null);
 
   const endDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current?.active) return;
+    const wasActive = Boolean(dragRef.current?.active);
     dragRef.current = null;
     const vp = viewportRef.current;
     if (vp) {
       try {
-        vp.releasePointerCapture(e.pointerId);
+        if (vp.hasPointerCapture?.(e.pointerId)) {
+          vp.releasePointerCapture(e.pointerId);
+        }
       } catch {
         /* ignore */
       }
-      vp.style.cursor = "grab";
+      if (wasActive) vp.style.cursor = "grab";
     }
   };
 
   return (
-    <div className={`flex h-full min-h-0 flex-col ${className}`}>
+    <div className={`relative flex h-full min-h-0 flex-col ${className}`}>
       <div className="flex shrink-0 items-center justify-center gap-2 border-b border-ink-800/10 bg-[rgba(251,249,243,0.22)] px-3 py-1.5 md:px-4">
         {mode === "full" && <Legend />}
         {mode === "ego" && onRequestFullscreen && (
@@ -238,69 +264,50 @@ export function GenealogyGraph({
             收起全景
           </button>
         )}
-        <div className="flex items-center gap-0.5 rounded border border-ink-800/10 bg-[rgba(251,249,243,0.5)] p-0.5">
-          <button
-            type="button"
-            className="px-2 py-1 text-xs text-ink-600 hover:text-ink-900"
-            onClick={() => setUserScale((s) => Math.max(minUser, s - 0.1))}
-            aria-label="缩小"
-          >
-            −
-          </button>
-          <span className="min-w-[2.75rem] text-center text-[10px] tabular-nums text-ink-500">
-            {displayPct}%
-          </span>
-          <button
-            type="button"
-            className="px-2 py-1 text-xs text-ink-600 hover:text-ink-900"
-            onClick={() => setUserScale((s) => Math.min(maxUser, s + 0.1))}
-            aria-label="放大"
-          >
-            +
-          </button>
-        </div>
       </div>
 
-      <div
-        ref={viewportRef}
-        className="scrollbar-timeline relative min-h-0 flex-1 cursor-grab overflow-auto bg-transparent select-none [scrollbar-gutter:stable] active:cursor-grabbing"
-        onWheel={(e) => {
-          if (e.ctrlKey || e.metaKey) {
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={viewportRef}
+          className="scrollbar-timeline absolute inset-0 cursor-grab overflow-auto bg-transparent select-none [scrollbar-gutter:stable] active:cursor-grabbing"
+          onWheel={(e) => {
+            if (e.ctrlKey || e.metaKey) {
+              e.preventDefault();
+              zoomPendingRef.current = true;
+              setUserScale((s) =>
+                Math.min(maxUser, Math.max(minUser, s - e.deltaY * 0.0015))
+              );
+            }
+          }}
+          onPointerDown={(e) => {
+            if (e.button !== 0) return;
+            const t = e.target as HTMLElement;
+            if (t.closest("button, a, input, select, textarea")) return;
+            const vp = viewportRef.current;
+            if (!vp) return;
             e.preventDefault();
-            setUserScale((s) =>
-              Math.min(maxUser, Math.max(minUser, s - e.deltaY * 0.0015))
-            );
-          }
-        }}
-        onPointerDown={(e) => {
-          if (e.button !== 0) return;
-          const t = e.target as HTMLElement;
-          if (t.closest("button, a, input, select, textarea")) return;
-          const vp = viewportRef.current;
-          if (!vp) return;
-          e.preventDefault();
-          window.getSelection()?.removeAllRanges();
-          dragRef.current = {
-            active: true,
-            x: e.clientX,
-            y: e.clientY,
-            sl: vp.scrollLeft,
-            st: vp.scrollTop,
-          };
-          vp.setPointerCapture(e.pointerId);
-        }}
-        onPointerMove={(e) => {
-          const drag = dragRef.current;
-          const vp = viewportRef.current;
-          if (!drag?.active || !vp) return;
-          e.preventDefault();
-          window.getSelection()?.removeAllRanges();
-          vp.scrollLeft = drag.sl - (e.clientX - drag.x);
-          vp.scrollTop = drag.st - (e.clientY - drag.y);
-        }}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-      >
+            window.getSelection()?.removeAllRanges();
+            dragRef.current = {
+              active: true,
+              x: e.clientX,
+              y: e.clientY,
+              sl: vp.scrollLeft,
+              st: vp.scrollTop,
+            };
+            vp.setPointerCapture(e.pointerId);
+          }}
+          onPointerMove={(e) => {
+            const drag = dragRef.current;
+            const vp = viewportRef.current;
+            if (!drag?.active || !vp) return;
+            e.preventDefault();
+            window.getSelection()?.removeAllRanges();
+            vp.scrollLeft = drag.sl - (e.clientX - drag.x);
+            vp.scrollTop = drag.st - (e.clientY - drag.y);
+          }}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+        >
         <div
           className="relative"
           style={{
@@ -434,6 +441,32 @@ export function GenealogyGraph({
           ))}
           </div>
         </div>
+        </div>
+
+        {/* 独立缩放控件：透明圆角玻璃 */}
+        <div className="pointer-events-none absolute bottom-3 right-3 z-20 flex flex-col items-center gap-2.5 md:bottom-4 md:right-4">
+          <button
+            type="button"
+            onClick={() => nudgeScale(0.12)}
+            disabled={userScale >= maxUser - 0.001}
+            aria-label="放大血缘树"
+            className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/35 bg-[rgba(251,249,243,0.28)] font-display text-2xl leading-none text-ink-800 shadow-[0_6px_20px_-10px_rgba(48,42,28,0.4)] backdrop-blur-[10px] transition hover:border-cinnabar/40 hover:bg-[rgba(251,249,243,0.55)] hover:text-cinnabar disabled:cursor-default disabled:opacity-30"
+          >
+            +
+          </button>
+          <span className="pointer-events-none min-w-[2.75rem] rounded-full border border-white/30 bg-[rgba(251,249,243,0.22)] px-2.5 py-1 text-center font-display text-[10px] tabular-nums tracking-wider text-ink-600 backdrop-blur-[10px]">
+            {displayPct}%
+          </span>
+          <button
+            type="button"
+            onClick={() => nudgeScale(-0.12)}
+            disabled={userScale <= minUser + 0.001}
+            aria-label="缩小血缘树"
+            className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/35 bg-[rgba(251,249,243,0.28)] font-display text-2xl leading-none text-ink-800 shadow-[0_6px_20px_-10px_rgba(48,42,28,0.4)] backdrop-blur-[10px] transition hover:border-cinnabar/40 hover:bg-[rgba(251,249,243,0.55)] hover:text-cinnabar disabled:cursor-default disabled:opacity-30"
+          >
+            −
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -469,6 +502,7 @@ export function GenealogyFullscreen({
     <AnimatePresence>
       {open && (
         <motion.div
+          data-overlay-portal
           className="fixed inset-0 z-[80] flex flex-col bg-[rgba(48,42,28,0.45)] p-3 backdrop-blur-[2px] md:p-5"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -531,7 +565,7 @@ function PersonNode({
   const gap = 6 * scale;
 
   if (lod === "dot") {
-    const size = (person.isEmperor ? 14 : 10) * scale;
+    const size = (person.isEmperor ? 14 : 10) * scale * (isFocus ? 1.35 : 1);
     return (
       <motion.button
         type="button"
@@ -539,7 +573,7 @@ function PersonNode({
         title={`${person.name}${person.templeName ? ` · ${person.templeName}` : ""}`}
         className={`absolute rounded-full border-2 transition ${
           isFocus
-            ? "border-cinnabar shadow-[0_0_0_3px_rgba(196,60,44,0.25)]"
+            ? "border-cinnabar shadow-[0_0_0_4px_rgba(196,60,44,0.35),0_0_18px_rgba(196,60,44,0.45)]"
             : "border-[rgba(247,241,232,0.95)]"
         } ${dimmed ? "opacity-25" : "opacity-100"}`}
         style={{
@@ -548,8 +582,10 @@ function PersonNode({
           width: size,
           height: size,
           background: person.accent,
+          zIndex: isFocus ? 5 : 1,
         }}
         aria-label={person.name}
+        aria-current={isFocus ? "true" : undefined}
       />
     );
   }
@@ -568,7 +604,7 @@ function PersonNode({
           person.isEmperor ? "bg-ink-50/95" : "border-dashed bg-ink-100/80"
         } ${
           isFocus
-            ? "border-cinnabar shadow-[0_0_0_2px_rgba(196,60,44,0.2)]"
+            ? "border-2 border-cinnabar bg-[rgba(196,60,44,0.08)] shadow-[0_0_0_3px_rgba(196,60,44,0.22),0_4px_14px_rgba(196,60,44,0.2)]"
             : inPath
               ? "border-ink-700/40"
               : "border-ink-800/15"
@@ -579,20 +615,51 @@ function PersonNode({
           width: NODE_W * scale,
           height: 36 * scale,
           fontSize: Math.max(10, 12 * scale),
+          zIndex: isFocus ? 5 : 1,
         }}
         title={person.name}
+        aria-current={isFocus ? "true" : undefined}
       >
         <span
           className="mr-1 inline-block h-2 w-2 shrink-0 rounded-full"
-          style={{ background: person.accent }}
+          style={{ background: isFocus ? "#c43c2c" : person.accent }}
         />
-        <span className="truncate font-semibold text-ink-800">{shortLabel}</span>
+        <span
+          className={`truncate font-semibold ${
+            isFocus ? "text-cinnabar" : "text-ink-800"
+          }`}
+        >
+          {shortLabel}
+        </span>
       </motion.button>
     );
   }
 
+  const nodeH = (dual ? NODE_H + 14 : NODE_H) * scale;
+  const ringPad = 5 * scale;
+
   return (
     <>
+      {isFocus && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute rounded-sm"
+          style={{
+            left: x * scale - (showPortrait ? portraitW + gap : 0) - ringPad,
+            top: y * scale - ringPad,
+            width:
+              NODE_W * scale +
+              (showPortrait ? portraitW + gap : 0) +
+              ringPad * 2,
+            height: nodeH + ringPad * 2,
+            zIndex: 2,
+            background:
+              "linear-gradient(135deg, rgba(196,60,44,0.14), rgba(196,60,44,0.03) 55%, rgba(196,60,44,0.1))",
+            boxShadow:
+              "0 0 0 1.5px rgba(196,60,44,0.55), 0 0 0 4px rgba(196,60,44,0.14), 0 8px 22px rgba(196,60,44,0.18)",
+          }}
+        />
+      )}
       {showPortrait && (
         <button
           type="button"
@@ -600,7 +667,7 @@ function PersonNode({
           title={`${person.name}御像`}
           className={`absolute overflow-hidden border bg-ink-100 transition ${
             isFocus
-              ? "border-cinnabar shadow-[0_0_0_2px_rgba(196,60,44,0.18)]"
+              ? "border-cinnabar shadow-[inset_0_0_0_1px_rgba(196,60,44,0.35)]"
               : "border-ink-800/15"
           } ${dimmed ? "opacity-40" : ""}`}
           style={{
@@ -608,7 +675,7 @@ function PersonNode({
             top: y * scale,
             width: portraitW,
             height: portraitH,
-            zIndex: isFocus ? 4 : 2,
+            zIndex: isFocus ? 5 : 2,
           }}
           aria-label={`${person.name}画像`}
         >
@@ -628,6 +695,14 @@ function PersonNode({
               {person.name.slice(0, 1)}
             </span>
           )}
+          {isFocus && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-cinnabar/80 to-transparent py-0.5 text-center font-display text-[8px] tracking-wider text-ink-50"
+            >
+              当前
+            </span>
+          )}
         </button>
       )}
       <motion.button
@@ -638,7 +713,7 @@ function PersonNode({
           person.isEmperor ? "bg-ink-50/95" : "border-dashed bg-ink-100/70"
         } ${
           isFocus
-            ? "border-cinnabar shadow-[0_0_0_3px_rgba(196,60,44,0.2)]"
+            ? "border-cinnabar bg-[rgba(255,248,244,0.98)]"
             : inPath
               ? "border-ink-700/40"
               : "border-ink-800/15"
@@ -647,21 +722,41 @@ function PersonNode({
           left: x * scale,
           top: y * scale,
           width: NODE_W * scale,
-          height: (dual ? NODE_H + 14 : NODE_H) * scale,
-          zIndex: isFocus ? 3 : 1,
+          height: nodeH,
+          zIndex: isFocus ? 5 : 1,
         }}
+        aria-current={isFocus ? "true" : undefined}
       >
-        <div className="h-1 shrink-0" style={{ background: person.accent }} />
+        <div
+          className="shrink-0"
+          style={{
+            height: isFocus ? 3 * scale : 1 * scale,
+            background: isFocus ? "#c43c2c" : person.accent,
+          }}
+        />
         <div className="flex min-h-0 flex-1 flex-col justify-center px-1.5 py-1">
-          <p
-            className="truncate font-display font-bold text-ink-900"
-            style={{ fontSize: Math.max(10, 12 * scale) }}
-          >
-            {person.name}
-          </p>
+          <div className="flex items-center gap-1">
+            {isFocus && (
+              <span
+                aria-hidden
+                className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-cinnabar"
+                style={{
+                  boxShadow: "0 0 0 2px rgba(196,60,44,0.25)",
+                }}
+              />
+            )}
+            <p
+              className={`truncate font-display font-bold ${
+                isFocus ? "text-cinnabar" : "text-ink-900"
+              }`}
+              style={{ fontSize: Math.max(10, 12 * scale) }}
+            >
+              {person.name}
+            </p>
+          </div>
           {person.templeName && (
             <p
-              className="truncate text-ink-500"
+              className={`truncate ${isFocus ? "text-cinnabar/80" : "text-ink-500"}`}
               style={{ fontSize: Math.max(8, 10 * scale) }}
             >
               {person.templeName}
@@ -680,7 +775,11 @@ function PersonNode({
               {person.reigns.map((r) => (
                 <span
                   key={r.title}
-                  className="border border-ink-800/15 bg-ink-100/80 px-1 font-display text-ink-700"
+                  className={`border px-1 font-display ${
+                    isFocus
+                      ? "border-cinnabar/35 bg-cinnabar/10 text-cinnabar"
+                      : "border-ink-800/15 bg-ink-100/80 text-ink-700"
+                  }`}
                   style={{ fontSize: Math.max(8, 9 * scale) }}
                 >
                   {r.title}
@@ -690,7 +789,7 @@ function PersonNode({
           )}
           {person.throneOrder != null && (
             <p
-              className="mt-0.5 text-ink-400"
+              className={`mt-0.5 ${isFocus ? "text-cinnabar/70" : "text-ink-400"}`}
               style={{ fontSize: Math.max(7, 8 * scale) }}
             >
               第 {person.throneOrder} 任 · {reignTitlesLabel(person)}

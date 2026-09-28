@@ -54,6 +54,13 @@ const TRACK = {
   overlapBonus: 20,
 } as const;
 
+/** 聚焦各朝时用固定高度，避免切朝时轨道忽高忽低牵动地图舞台 */
+const FOCUSED_TRACK_HEIGHT =
+  TRACK.base +
+  LAYOUT.maxRow * TRACK.perRow +
+  TRACK.longTitleBonus +
+  TRACK.overlapBonus;
+
 type LayoutItem = {
   event: ChronicleEvent;
   leftPercent: number;

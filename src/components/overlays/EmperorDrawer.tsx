@@ -375,7 +375,7 @@ function ArchiveThumb({
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
             className="overflow-hidden border-t border-ink-800/10"
           >
-            {children}
+            <div className="min-h-0">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>

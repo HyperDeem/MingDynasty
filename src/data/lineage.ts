@@ -532,7 +532,6 @@ export const SUCCESSION_CHAIN: SuccessionStep[] = [
     order: 6,
     emperorId: "yingzong",
     orderLabel: "第 6 任",
-    reignNote: "正统 →（景泰穿插）→ 天顺复位",
   },
   { order: 7, emperorId: "daizong", orderLabel: "第 7 任" },
   { order: 8, emperorId: "xianzong", orderLabel: "第 8 任" },

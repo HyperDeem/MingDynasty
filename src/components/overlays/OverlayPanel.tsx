@@ -21,6 +21,17 @@ interface OverlayPanelProps {
 
 const CLICK_MOVE_PX = 8;
 
+function hitInsidePanel(panel: HTMLElement, x: number, y: number): boolean {
+  const stack = document.elementsFromPoint(x, y);
+  for (const el of stack) {
+    if (!(el instanceof Element)) continue;
+    // 全景 / 画像放大等门户层：不据此关闭帝王浮窗
+    if (el.closest("[data-overlay-portal]")) return true;
+    if (panel.contains(el)) return true;
+  }
+  return false;
+}
+
 /**
  * 地图舞台上的轻量浮层：Esc / 关闭按钮收起；内容区撑满卡片高度
  */
@@ -38,6 +49,8 @@ export function OverlayPanel({
   const outsideDownRef = useRef<{
     x: number;
     y: number;
+    pointerId: number;
+    moved: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -49,37 +62,59 @@ export function OverlayPanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  /** 点浮窗外关闭；拖地图（位移超阈值）不关闭 */
+  /**
+   * 点浮窗外关闭；拖地图（位移超阈值）不关闭。
+   * 用坐标 + elementsFromPoint，避免血缘树 setPointerCapture 改写 event.target
+   * 后被误判为「点在面板内」。
+   */
   useEffect(() => {
     if (!open) return;
 
     const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
       const panel = panelRef.current;
-      const target = e.target as Node | null;
-      if (!panel || !target) return;
-      if (panel.contains(target)) {
+      if (!panel) return;
+      if (hitInsidePanel(panel, e.clientX, e.clientY)) {
         outsideDownRef.current = null;
         return;
       }
-      outsideDownRef.current = { x: e.clientX, y: e.clientY };
+      outsideDownRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        pointerId: e.pointerId,
+        moved: false,
+      };
     };
 
-    const onPointerUp = (e: PointerEvent) => {
+    const onPointerMove = (e: PointerEvent) => {
       const down = outsideDownRef.current;
+      if (!down || down.pointerId !== e.pointerId || down.moved) return;
+      if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > CLICK_MOVE_PX) {
+        down.moved = true;
+      }
+    };
+
+    const finish = (e: PointerEvent) => {
+      const down = outsideDownRef.current;
+      if (!down || down.pointerId !== e.pointerId) return;
       outsideDownRef.current = null;
-      if (!down) return;
+      if (down.moved) return;
       const panel = panelRef.current;
-      const target = e.target as Node | null;
-      if (panel && target && panel.contains(target)) return;
-      const dist = Math.hypot(e.clientX - down.x, e.clientY - down.y);
-      if (dist <= CLICK_MOVE_PX) onClose();
+      if (!panel) return;
+      if (hitInsidePanel(panel, e.clientX, e.clientY)) return;
+      onClose();
     };
 
     document.addEventListener("pointerdown", onPointerDown, true);
-    document.addEventListener("pointerup", onPointerUp, true);
+    document.addEventListener("pointermove", onPointerMove, true);
+    document.addEventListener("pointerup", finish, true);
+    document.addEventListener("pointercancel", finish, true);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true);
-      document.removeEventListener("pointerup", onPointerUp, true);
+      document.removeEventListener("pointermove", onPointerMove, true);
+      document.removeEventListener("pointerup", finish, true);
+      document.removeEventListener("pointercancel", finish, true);
+      outsideDownRef.current = null;
     };
   }, [open, onClose]);
 
@@ -95,7 +130,7 @@ export function OverlayPanel({
       {open && (
         <motion.aside
           ref={panelRef}
-          key={`overlay-${side}-${size}-${title}`}
+          key={`overlay-${side}-${size}`}
           role="dialog"
           aria-modal="false"
           aria-label={title}

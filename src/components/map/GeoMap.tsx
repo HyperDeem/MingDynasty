@@ -411,7 +411,17 @@ export function GeoMap({
     }
   }, [getPaths]);
 
-  const syncCanvasSize = useCallback(() => {
+  const bufferShrinkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+
+  /**
+   * @param mode
+   *  - exact：立即按容器分配 backing store（首屏 / 手动重置）
+   *  - grow：仅在需要更大缓冲时扩容；缩小时先保持缓冲与 CSS 一致（禁止拉伸），
+   *    延迟收缩缓冲，避免时间轴高度动画把位图纵向压扁造成抖动
+   */
+  const syncCanvasSize = useCallback((mode: "exact" | "grow" = "exact") => {
     const wrap = wrapRef.current;
     const canvas = canvasRef.current;
     if (!wrap || !canvas) return false;
@@ -421,24 +431,66 @@ export function GeoMap({
     const h = Math.max(1, Math.floor(rect.height));
     if (w < 2 || h < 2) return false;
 
-    const changed =
-      sizeRef.current.w !== w ||
-      sizeRef.current.h !== h ||
-      sizeRef.current.dpr !== dpr;
     sizeRef.current = { w, h, dpr };
-    if (
-      changed ||
-      canvas.width !== Math.floor(w * dpr) ||
-      canvas.height !== Math.floor(h * dpr)
-    ) {
-      canvas.width = Math.floor(w * dpr);
-      canvas.height = Math.floor(h * dpr);
+
+    const needW = Math.floor(w * dpr);
+    const needH = Math.floor(h * dpr);
+    const curW = canvas.width;
+    const curH = canvas.height;
+
+    const grow = needW > curW || needH > curH;
+    const shrink = needW < curW || needH < curH;
+    const dprChanged =
+      curW > 0 &&
+      curH > 0 &&
+      Math.abs(curW / Math.max(1, w) - dpr) > 0.05;
+
+    const applyCssToBuffer = () => {
+      // CSS 像素必须与 backing store / dpr 一致，否则浏览器会拉伸位图
+      canvas.style.width = `${canvas.width / dpr}px`;
+      canvas.style.height = `${canvas.height / dpr}px`;
+    };
+
+    if (mode === "exact" || grow || dprChanged || curW === 0 || curH === 0) {
+      if (bufferShrinkTimerRef.current) {
+        clearTimeout(bufferShrinkTimerRef.current);
+        bufferShrinkTimerRef.current = null;
+      }
+      if (curW !== needW || curH !== needH) {
+        canvas.width = needW;
+        canvas.height = needH;
+        pathsCacheRef.current = null;
+      }
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
-      pathsCacheRef.current = null;
+    } else if (shrink) {
+      // 保持现有缓冲；CSS 跟缓冲走（不跟更小的容器走），由 wrap overflow 裁切
+      applyCssToBuffer();
+      if (bufferShrinkTimerRef.current) {
+        clearTimeout(bufferShrinkTimerRef.current);
+      }
+      bufferShrinkTimerRef.current = setTimeout(() => {
+        bufferShrinkTimerRef.current = null;
+        const c = canvasRef.current;
+        const { w: lw, h: lh, dpr: ldpr } = sizeRef.current;
+        if (!c) return;
+        const tw = Math.floor(lw * ldpr);
+        const th = Math.floor(lh * ldpr);
+        if (c.width !== tw || c.height !== th) {
+          c.width = tw;
+          c.height = th;
+          pathsCacheRef.current = null;
+        }
+        c.style.width = `${lw}px`;
+        c.style.height = `${lh}px`;
+        paint();
+      }, 200);
+    } else {
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
     }
     return true;
-  }, []);
+  }, [paint]);
 
   const applyView = useCallback(
     (next: ViewTransform) => {
@@ -458,7 +510,7 @@ export function GeoMap({
 
   const resetView = useCallback(
     (preserveZoom: boolean) => {
-      if (!syncCanvasSize()) return;
+      if (!syncCanvasSize("exact")) return;
       const { w, h } = sizeRef.current;
       const base = fitBounds(CHINA_FOCUS_BBOX, w, h, MAP_FIT_PADDING);
       baseViewRef.current = base;
@@ -480,6 +532,37 @@ export function GeoMap({
     },
     [applyView, syncCanvasSize]
   );
+
+  /**
+   * 容器尺寸变化：冻结当前投影（不改 scale/tx/ty，不 clamp 重居中）。
+   * 时间轴在底部吃高度时，地图相对屏幕顶部保持不动，从下方裁切即可。
+   */
+  const resyncViewToSize = useCallback(() => {
+    if (!provincesRef.current.length) return;
+    const hadSize = sizeRef.current.w >= 2 && sizeRef.current.h >= 2;
+    if (!syncCanvasSize("grow")) return;
+    const { w, h } = sizeRef.current;
+    if (w < 2 || h < 2) return;
+
+    baseViewRef.current = fitBounds(CHINA_FOCUS_BBOX, w, h, MAP_FIT_PADDING);
+
+    if (
+      !hadSize ||
+      !Number.isFinite(viewRef.current.scale) ||
+      viewRef.current.scale <= 0
+    ) {
+      zoomFactorRef.current = 1;
+      applyView({ ...baseViewRef.current });
+      return;
+    }
+
+    zoomFactorRef.current =
+      viewRef.current.scale / Math.max(1e-9, baseViewRef.current.scale);
+    paint();
+  }, [applyView, paint, syncCanvasSize]);
+
+  const resyncViewToSizeRef = useRef(resyncViewToSize);
+  resyncViewToSizeRef.current = resyncViewToSize;
 
   // 加载省界（只跑一次）
   useEffect(() => {
@@ -594,33 +677,62 @@ export function GeoMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅挂载时加载一次
   }, []);
 
-  // 尺寸变化：同步清屏后立刻重绘
+  // 尺寸变化：保持视口中心，不重新 fit（避免切朝/时间轴高度动画时地图抖动）
+  // 依赖保持 length=1（用稳定 ref），避免 Fast Refresh 时从 [resetView] 变成 [] 触发 hooks 报错
+  const resizeEffectKey = useRef(0);
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
     const ro = new ResizeObserver(() => {
-      if (!provincesRef.current.length) return;
-      resetView(true);
+      resyncViewToSizeRef.current();
     });
     ro.observe(wrap);
     return () => ro.disconnect();
-  }, [resetView]);
+  }, [resizeEffectKey]);
+
+  const resetViewRef = useRef(resetView);
+  resetViewRef.current = resetView;
 
   // status 就绪后再保底画一次（避免首帧容器高度为 0）
+  // 仅依赖 status，避免 resetView 身份变化时误触发整图重 fit 造成抖动
   useEffect(() => {
     if (status !== "ready") return;
     const id = requestAnimationFrame(() => {
-      if (provincesRef.current.length) resetView(true);
+      if (provincesRef.current.length) resetViewRef.current(true);
     });
     return () => cancelAnimationFrame(id);
-  }, [status, resetView]);
+  }, [status]);
 
-  // 疆域数据变化
+  useEffect(
+    () => () => {
+      if (bufferShrinkTimerRef.current) {
+        clearTimeout(bufferShrinkTimerRef.current);
+      }
+    },
+    []
+  );
+
+  // 疆域数据变化：只重绘，不动视口
+  const crossfadePaintRaf = useRef<number | null>(null);
   useEffect(() => {
     extrasRef.current = extrasFromFc(extras);
     prevExtrasRef.current = extrasFromFc(previousExtras);
     pathsCacheRef.current = null;
-    if (provincesRef.current.length) paint();
+    if (!provincesRef.current.length) return;
+    // 合并 crossfade 多帧 setState，减少同步重绘压力
+    if (crossfadePaintRaf.current != null) {
+      cancelAnimationFrame(crossfadePaintRaf.current);
+    }
+    crossfadePaintRaf.current = requestAnimationFrame(() => {
+      crossfadePaintRaf.current = null;
+      paint();
+    });
+    return () => {
+      if (crossfadePaintRaf.current != null) {
+        cancelAnimationFrame(crossfadePaintRaf.current);
+        crossfadePaintRaf.current = null;
+      }
+    };
   }, [
     coreProvinces,
     previousCoreProvinces,
@@ -749,7 +861,10 @@ export function GeoMap({
   return (
     <div
       ref={wrapRef}
-      className={className ?? "relative h-full w-full min-h-[280px]"}
+      className={
+        className ??
+        "relative h-full w-full min-h-[280px] overflow-hidden"
+      }
       role="application"
       aria-label="明朝疆域交互地图"
       onPointerDown={status === "ready" ? onPointerDown : undefined}
@@ -759,9 +874,10 @@ export function GeoMap({
       onPointerLeave={status === "ready" ? onPointerLeave : undefined}
       onWheel={status === "ready" ? onWheel : undefined}
     >
+      {/* 不用 inset-0/h-full：尺寸只由 JS style 与 backing store 对齐，避免位图被拉伸 */}
       <canvas
         ref={canvasRef}
-        className="territory-render-canvas absolute inset-0 h-full w-full touch-none"
+        className="territory-render-canvas absolute left-0 top-0 touch-none"
       />
       {status === "loading" && (
         <div className="pointer-events-none absolute inset-0 z-[1] flex flex-col items-center justify-center gap-2 bg-[rgba(248,249,245,0.55)] text-[#898d80]">

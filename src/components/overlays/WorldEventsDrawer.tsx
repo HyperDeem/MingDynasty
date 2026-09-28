@@ -7,6 +7,7 @@ import {
   type PeriodId,
 } from "@/data/ming-dynasty";
 import { getEventsByPeriod } from "@/data/chronicle-events";
+import { resolveTerritorySnapshot } from "@/data/ming-territory";
 import { EventTag } from "@/components/EventTag";
 import { OverlayPanel } from "@/components/overlays/OverlayPanel";
 
@@ -31,6 +32,7 @@ export function WorldEventsDrawer({
   const content = getPeriodContent(periodId);
   const events = getEventsByPeriod(periodId);
   const territory = content.territory;
+  const territorySnap = resolveTerritorySnapshot(currentYear);
   const highlightRef = useRef<HTMLLIElement | null>(null);
 
   useEffect(() => {
@@ -68,10 +70,10 @@ export function WorldEventsDrawer({
             万 km²
           </span>
           <span>
-            两京十三省{" "}
-            <strong className="tabular-nums text-ink-800">
-              {territory.provinces}
-            </strong>
+            {territorySnap.coreLegendLabel}
+            <span className="ml-1 tabular-nums text-ink-400">
+              · {territory.provinces} 省
+            </span>
           </span>
           <span>都城 {territory.capitals.join("、")}</span>
         </div>

@@ -34,7 +34,7 @@ export function SuccessionChain({ activeId, onSelect }: SuccessionChainProps) {
         <p className="font-display text-[10px] tracking-[0.25em] text-ink-400">
           帝位承袭链
         </p>
-        <p className="text-[10px] text-ink-400">明朝十六帝 · 英宗一人一席</p>
+        <p className="text-[10px] text-ink-400">明朝十六帝</p>
       </div>
 
       <ol
@@ -44,10 +44,7 @@ export function SuccessionChain({ activeId, onSelect }: SuccessionChainProps) {
         {SUCCESSION_CHAIN.map((step) => {
           const person = getEmperorPerson(step.emperorId);
           const active = step.emperorId === activeId;
-          const reignLabel =
-            person.reigns.length > 1
-              ? "正统/天顺"
-              : person.reigns[0]?.title ?? "";
+          const reignLabel = person.reigns[0]?.title ?? "";
           return (
             <li
               key={step.order}
@@ -76,11 +73,6 @@ export function SuccessionChain({ activeId, onSelect }: SuccessionChainProps) {
                 <span className="mt-0.5 max-w-[4.2rem] truncate text-[9px] text-ink-500">
                   {person.name}
                 </span>
-                {step.reignNote && (
-                  <span className="mt-1 max-w-[5.5rem] text-center text-[8px] leading-tight text-ink-400">
-                    一人双年号
-                  </span>
-                )}
               </button>
             </li>
           );

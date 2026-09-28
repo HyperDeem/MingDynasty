@@ -109,9 +109,9 @@ export default function HomePage() {
   );
 
   return (
-    <div className="relative flex h-dvh flex-col overflow-hidden bg-[#f3efe4]">
-      {/* 全屏地图舞台 */}
-      <div className="relative min-h-0 flex-1">
+    <div className="relative h-dvh overflow-hidden bg-[#f3efe4]">
+      {/* 地图铺满视口：时间轴改为浮层，切朝/展开时不再挤矮画布，从根源消除抖动 */}
+      <div className="absolute inset-0">
         <TerritoryMapPanel
           variant="stage"
           currentYear={currentYear}
@@ -120,7 +120,7 @@ export default function HomePage() {
         />
 
         {/* 轻量顶栏 */}
-        <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-4 px-4 pt-3 md:px-6 md:pt-4">
+        <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start px-4 pt-3 md:px-6 md:pt-4">
           <div className="pointer-events-auto rounded-md border border-ink-800/10 bg-[rgba(251,249,243,0.9)] px-3 py-2 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-md">
             <p className="font-display text-[10px] tracking-[0.32em] text-ink-500">
               INTERACTIVE CHRONICLE
@@ -128,17 +128,6 @@ export default function HomePage() {
             <h1 className="font-display text-xl font-bold tracking-wide text-ink-900 md:text-2xl">
               {DYNASTY_META.title}
             </h1>
-          </div>
-          <div className="pointer-events-auto rounded-md border border-ink-800/10 bg-[rgba(251,249,243,0.9)] px-3 py-2 text-right shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-md">
-            <p className="font-display text-[11px] tabular-nums text-ink-700">
-              {currentYear}
-              <span className="ml-1 text-[10px] font-normal text-ink-400">
-                年
-              </span>
-            </p>
-            <p className="mt-0.5 text-[10px] text-ink-400">
-              {getPeriodById(periodId).label}
-            </p>
           </div>
         </header>
 
@@ -161,18 +150,20 @@ export default function HomePage() {
         />
       </div>
 
-      <footer className="relative z-40 shrink-0">
-        <Timeline
-          activeEventId={highlightEventId}
-          activeEmperorId={emperorId}
-          activePeriodId={periodId}
-          highlightYearFrom={territorySnapshot.yearFrom}
-          highlightYearTo={territorySnapshot.yearTo}
-          interactionLocked={emperorId != null}
-          onSelectEvent={handleSelectEvent}
-          onSelectEmperor={handleSelectEmperor}
-          onSelectEra={handleSelectEra}
-        />
+      <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-40">
+        <div className="pointer-events-auto">
+          <Timeline
+            activeEventId={highlightEventId}
+            activeEmperorId={emperorId}
+            activePeriodId={periodId}
+            highlightYearFrom={territorySnapshot.yearFrom}
+            highlightYearTo={territorySnapshot.yearTo}
+            interactionLocked={emperorId != null}
+            onSelectEvent={handleSelectEvent}
+            onSelectEmperor={handleSelectEmperor}
+            onSelectEra={handleSelectEra}
+          />
+        </div>
       </footer>
     </div>
   );

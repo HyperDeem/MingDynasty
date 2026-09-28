@@ -122,6 +122,7 @@ export function EmperorPortrait({
           <AnimatePresence>
             {open && src && !failed && (
               <motion.div
+                data-overlay-portal
                 className="fixed inset-0 z-[90] flex items-center justify-center bg-[rgba(48,42,28,0.55)] p-4 backdrop-blur-[3px] md:p-8"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
