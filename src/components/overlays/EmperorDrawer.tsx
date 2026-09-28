@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { EmperorId } from "@/data/emperors";
 import {
   getDefaultPeriodForEmperor,
+  getEmperorPerson,
+  getSuccessionNeighbors,
   isEmperorId,
   type LineageNodeId,
 } from "@/data/lineage";
@@ -63,6 +65,18 @@ export function EmperorDrawer({
   const activeEmperor: EmperorId | null =
     focusId && isEmperorId(focusId) ? focusId : emperorId;
 
+  const neighbors = useMemo(
+    () =>
+      activeEmperor ? getSuccessionNeighbors(activeEmperor) : null,
+    [activeEmperor]
+  );
+  const prevEmperor = neighbors?.prev
+    ? getEmperorPerson(neighbors.prev.emperorId)
+    : null;
+  const nextEmperor = neighbors?.next
+    ? getEmperorPerson(neighbors.next.emperorId)
+    : null;
+
   const periodId = activeEmperor
     ? getDefaultPeriodForEmperor(activeEmperor)
     : null;
@@ -107,47 +121,112 @@ export function EmperorDrawer({
                 className="flex min-h-0 flex-1 flex-col overflow-hidden"
               >
                 {tab === "bio" && (
-                  <div className="flex min-h-0 flex-1 flex-col px-3 py-3 md:px-4 md:py-4 lg:px-5 lg:py-5">
-                    <div className="flex shrink-0 gap-3 md:gap-4">
-                      <EmperorPortrait
-                        emperorId={activeEmperor}
-                        name={emperor.name}
-                        enlargeOnClick
-                        className="!h-28 !w-[5.25rem] md:!h-32 md:!w-24 lg:!h-36 lg:!w-[6.5rem]"
-                      />
-                      <div className="flex min-w-0 flex-1 flex-col justify-center">
-                        <h3 className="font-display text-lg font-bold tracking-wide text-ink-900 md:text-xl md:tracking-wider lg:text-2xl">
-                          {emperor.name}
-                        </h3>
-                        <p className="mt-1 text-xs tracking-wide text-ink-500 md:mt-1.5 md:text-sm md:tracking-wider">
-                          {emperor.templeName}
-                          <span className="mx-1.5 text-ink-300">·</span>
-                          年号 {emperor.reignTitle}
-                        </p>
-                        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] text-ink-500 md:mt-3 md:gap-y-2 md:text-xs">
-                          <div>
-                            <dt className="tracking-wider text-ink-400">
-                              生卒
-                            </dt>
-                            <dd className="mt-0.5 tabular-nums tracking-wide text-ink-700">
-                              {emperor.lifespan}
-                            </dd>
-                          </div>
-                          <div>
-                            <dt className="tracking-wider text-ink-400">
-                              在位
-                            </dt>
-                            <dd className="mt-0.5 tabular-nums tracking-wide text-ink-700">
-                              {emperor.reignYears}
-                            </dd>
-                          </div>
-                        </dl>
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <div className="flex min-h-0 flex-1 flex-col px-3 py-3 md:px-4 md:py-4 lg:px-5 lg:py-5">
+                      <div className="flex shrink-0 gap-3 md:gap-4">
+                        <EmperorPortrait
+                          emperorId={activeEmperor}
+                          name={emperor.name}
+                          enlargeOnClick
+                          className="!h-28 !w-[5.25rem] md:!h-32 md:!w-24 lg:!h-36 lg:!w-[6.5rem]"
+                        />
+                        <div className="flex min-w-0 flex-1 flex-col justify-center">
+                          <h3 className="font-display text-lg font-bold tracking-wide text-ink-900 md:text-xl md:tracking-wider lg:text-2xl">
+                            {emperor.name}
+                          </h3>
+                          <p className="mt-1 text-xs tracking-wide text-ink-500 md:mt-1.5 md:text-sm md:tracking-wider">
+                            {emperor.templeName}
+                            <span className="mx-1.5 text-ink-300">·</span>
+                            年号 {emperor.reignTitle}
+                          </p>
+                          <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] text-ink-500 md:mt-3 md:gap-y-2 md:text-xs">
+                            <div>
+                              <dt className="tracking-wider text-ink-400">
+                                生卒
+                              </dt>
+                              <dd className="mt-0.5 tabular-nums tracking-wide text-ink-700">
+                                {emperor.lifespan}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="tracking-wider text-ink-400">
+                                在位
+                              </dt>
+                              <dd className="mt-0.5 tabular-nums tracking-wide text-ink-700">
+                                {emperor.reignYears}
+                              </dd>
+                            </div>
+                          </dl>
+                        </div>
                       </div>
+
+                      <p className="mt-4 min-h-0 flex-1 overflow-y-auto text-[13px] leading-[1.9] tracking-wide text-ink-600 scrollbar-timeline md:mt-5 md:text-sm md:leading-[2.05] md:tracking-[0.04em] lg:mt-6 lg:text-[15px] lg:leading-[2.2] lg:tracking-[0.055em]">
+                        {emperor.summary}
+                      </p>
                     </div>
 
-                    <p className="mt-4 min-h-0 flex-1 overflow-y-auto text-[13px] leading-[1.9] tracking-wide text-ink-600 scrollbar-timeline md:mt-5 md:text-sm md:leading-[2.05] md:tracking-[0.04em] lg:mt-6 lg:text-[15px] lg:leading-[2.2] lg:tracking-[0.055em]">
-                      {emperor.summary}
-                    </p>
+                    <div className="flex shrink-0 items-stretch gap-2 border-t border-ink-800/10 px-2 py-2 md:px-3">
+                      <button
+                        type="button"
+                        disabled={!neighbors?.prev}
+                        onClick={() =>
+                          neighbors?.prev &&
+                          onSelectEmperor(neighbors.prev.emperorId)
+                        }
+                        className="flex min-w-0 flex-1 items-center gap-2 rounded-sm border border-ink-800/12 bg-ink-50/80 px-2.5 py-2 text-left transition enabled:hover:border-cinnabar/35 enabled:hover:text-cinnabar disabled:cursor-default disabled:opacity-35"
+                        aria-label={
+                          prevEmperor
+                            ? `上一任 ${prevEmperor.templeName ?? prevEmperor.name}`
+                            : "已无上一任"
+                        }
+                      >
+                        <span className="shrink-0 font-display text-base text-ink-400">
+                          ←
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-[9px] tracking-wider text-ink-400">
+                            上一任
+                          </span>
+                          <span className="block truncate font-display text-[12px] font-semibold text-ink-800 md:text-[13px]">
+                            {prevEmperor
+                              ? prevEmperor.reigns[0]?.title ??
+                                prevEmperor.templeName ??
+                                prevEmperor.name
+                              : "开国"}
+                          </span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!neighbors?.next}
+                        onClick={() =>
+                          neighbors?.next &&
+                          onSelectEmperor(neighbors.next.emperorId)
+                        }
+                        className="flex min-w-0 flex-1 items-center justify-end gap-2 rounded-sm border border-ink-800/12 bg-ink-50/80 px-2.5 py-2 text-right transition enabled:hover:border-cinnabar/35 enabled:hover:text-cinnabar disabled:cursor-default disabled:opacity-35"
+                        aria-label={
+                          nextEmperor
+                            ? `下一任 ${nextEmperor.templeName ?? nextEmperor.name}`
+                            : "已无下一任"
+                        }
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-[9px] tracking-wider text-ink-400">
+                            下一任
+                          </span>
+                          <span className="block truncate font-display text-[12px] font-semibold text-ink-800 md:text-[13px]">
+                            {nextEmperor
+                              ? nextEmperor.reigns[0]?.title ??
+                                nextEmperor.templeName ??
+                                nextEmperor.name
+                              : "终祚"}
+                          </span>
+                        </span>
+                        <span className="shrink-0 font-display text-base text-ink-400">
+                          →
+                        </span>
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -165,7 +244,6 @@ export function EmperorDrawer({
 
                 {tab === "archive" && (
                   <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-timeline">
-                    {/* 身份档案 → 承袭链导航 → 前后任继承对比 */}
                     <EmperorArchiveCard emperorId={activeEmperor} />
                     <SuccessionChain
                       activeId={activeEmperor}

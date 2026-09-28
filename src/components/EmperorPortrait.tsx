@@ -146,26 +146,18 @@ export function EmperorPortrait({
                     alt={later ? `${name}追绘御容` : `${name}标准坐像`}
                     className="max-h-[min(82vh,48rem)] w-auto max-w-full object-contain"
                   />
-                  <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink-900/75 to-transparent px-4 pb-3 pt-8 text-center">
-                    <p className="font-display text-sm tracking-wider text-ink-50">
-                      {name}
-                      {later && (
-                        <span className="ml-2 text-[11px] text-ink-200">
-                          后世追绘
-                        </span>
-                      )}
-                    </p>
-                    <p className="mt-0.5 text-[10px] tracking-widest text-ink-300">
-                      点击空白处关闭
-                    </p>
-                  </figcaption>
-                  <button
-                    type="button"
-                    onClick={() => setOpen(false)}
-                    className="absolute right-2 top-2 border border-ink-50/25 bg-ink-900/45 px-2 py-1 text-[11px] text-ink-50 backdrop-blur-sm transition hover:bg-ink-900/65"
-                  >
-                    关闭
-                  </button>
+                  {(later || name) && (
+                    <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink-900/70 to-transparent px-4 pb-3 pt-8 text-center pointer-events-none">
+                      <p className="font-display text-sm tracking-wider text-ink-50">
+                        {name}
+                        {later && (
+                          <span className="ml-2 text-[11px] text-ink-200">
+                            后世追绘
+                          </span>
+                        )}
+                      </p>
+                    </figcaption>
+                  )}
                 </motion.figure>
               </motion.div>
             )}

@@ -30,6 +30,8 @@ interface TimelineProps {
   onSelectEmperor: (band: EmperorBand) => void;
   /** 点击年号簇：同步时期/年份到地图，不强制开浮层 */
   onSelectEra?: (periodId: PeriodId) => void;
+  /** 帝王浮层打开时收起并禁用时间轴互动 */
+  interactionLocked?: boolean;
 }
 
 const LAYOUT = {
@@ -163,6 +165,7 @@ export function Timeline({
   onSelectEvent,
   onSelectEmperor,
   onSelectEra,
+  interactionLocked = false,
 }: TimelineProps) {
   const [hoveredBand, setHoveredBand] = useState<string | null>(null);
   /** 悬停提示（不展开）；点击后才真正展开 */
@@ -433,50 +436,61 @@ export function Timeline({
     []
   );
 
+  /** 帝王浮层打开：收起时间轴并停用互动 */
+  useEffect(() => {
+    if (!interactionLocked) return;
+    collapseTimeline();
+    setHoveredBand(null);
+  }, [interactionLocked]);
+
   return (
     <motion.div
       ref={rootRef}
       role="region"
-      tabIndex={0}
+      tabIndex={interactionLocked ? -1 : 0}
       aria-expanded={expanded}
-      aria-label={expanded ? "时间轴已展开" : "时间轴区域，点击展开"}
-      className={`relative cursor-pointer border-t border-ink-800/10 bg-[rgba(251,249,243,0.94)] backdrop-blur-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cinnabar/35 ${
-        expanded ? "overflow-hidden" : "overflow-visible"
+      aria-disabled={interactionLocked || undefined}
+      aria-label={
+        interactionLocked
+          ? "时间轴已暂停（请先关闭帝王简介）"
+          : expanded
+            ? "时间轴已展开"
+            : "时间轴，点击此浅色区域展开"
+      }
+      className={`relative overflow-hidden border-t border-ink-800/10 bg-[rgba(251,249,243,0.94)] backdrop-blur-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cinnabar/35 ${
+        interactionLocked
+          ? "pointer-events-none cursor-default opacity-55"
+          : "cursor-pointer"
       }`}
-      onMouseEnter={handleEnter}
-      onMouseLeave={handleLeave}
+      onMouseEnter={() => {
+        if (!interactionLocked) handleEnter();
+      }}
+      onMouseLeave={() => {
+        if (!interactionLocked) handleLeave();
+      }}
       onClick={(e) => {
-        if (expanded) return;
-        // 色带/筛选等控件自有逻辑；区域空白处点击即可展开
+        if (interactionLocked || expanded) return;
+        // 仅本浅色底区域内的点击可展开；色带按钮另有逻辑
         const t = e.target as HTMLElement;
         if (t.closest("button, a, input, select, textarea")) return;
         expandTimeline();
       }}
       onKeyDown={(e) => {
+        if (interactionLocked) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           if (!expanded) expandTimeline();
         }
       }}
       animate={{
-        y: !expanded && hinted ? -4 : 0,
-        boxShadow: !expanded && hinted
-          ? "0 -6px 20px -8px rgba(48,42,28,0.18)"
-          : "0 0 0 0 rgba(0,0,0,0)",
+        y: !interactionLocked && !expanded && hinted ? -4 : 0,
+        boxShadow:
+          !interactionLocked && !expanded && hinted
+            ? "0 -6px 20px -8px rgba(48,42,28,0.18)"
+            : "0 0 0 0 rgba(0,0,0,0)",
       }}
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
     >
-      {/* 收起时向上扩大可点/可悬停区域，不必精确点在色带上 */}
-      {!expanded && (
-        <div
-          className="absolute inset-x-0 -top-16 h-16 cursor-pointer md:-top-20 md:h-20"
-          aria-hidden
-          onClick={(e) => {
-            e.stopPropagation();
-            expandTimeline();
-          }}
-        />
-      )}
       <motion.div
         className="px-4 md:px-6"
         animate={{

@@ -155,10 +155,11 @@ export default function HomePage() {
         />
       </div>
 
-      <footer className="relative z-40 shrink-0 overflow-visible">
+      <footer className="relative z-40 shrink-0">
         <Timeline
           activeEventId={highlightEventId}
           activeEmperorId={emperorId}
+          interactionLocked={emperorId != null}
           onSelectEvent={handleSelectEvent}
           onSelectEmperor={handleSelectEmperor}
           onSelectEra={handleSelectEra}
