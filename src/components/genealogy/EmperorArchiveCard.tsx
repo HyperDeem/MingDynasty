@@ -10,34 +10,22 @@ import { motion } from "framer-motion";
 
 interface EmperorArchiveCardProps {
   emperorId: EmperorId;
-  /** 在浮层内撑满剩余高度 */
-  fill?: boolean;
 }
 
-export function EmperorArchiveCard({
-  emperorId,
-  fill = false,
-}: EmperorArchiveCardProps) {
+/** 档案身份卡：姓名 / 年号 / 庙谥（不含简介与生卒，避免与简介页重复） */
+export function EmperorArchiveCard({ emperorId }: EmperorArchiveCardProps) {
   const person = getEmperorPerson(emperorId);
   const events = getEventsByEmperorSafe(emperorId);
 
   return (
     <motion.article
       key={emperorId}
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className={`bg-ink-50/80 px-3 py-4 md:px-5 md:py-5 ${
-        fill
-          ? "flex min-h-0 flex-1 flex-col"
-          : "border-t border-ink-800/10"
-      }`}
+      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      className="bg-ink-50/80 px-3 py-3 md:px-4 md:py-4"
     >
-      <p className="shrink-0 font-display text-[10px] tracking-[0.3em] text-cinnabar md:tracking-[0.35em]">
-        帝王档案卡
-      </p>
-
-      <div className="mt-3 grid gap-2 sm:grid-cols-3 md:mt-4 md:gap-3">
+      <div className="grid gap-2 sm:grid-cols-3 md:gap-2.5">
         <NameBlock label="姓名" value={person.name} emphasize />
         <NameBlock
           label="年号"
@@ -65,27 +53,8 @@ export function EmperorArchiveCard({
         />
       </div>
 
-      {person.birthDeath && (
-        <p className="mt-3 text-xs tabular-nums text-ink-400">
-          生卒 {person.birthDeath}
-          {person.throneOrder != null && (
-            <span className="ml-3">帝位第 {person.throneOrder} 任</span>
-          )}
-        </p>
-      )}
-
-      <p
-        className={`mt-3 text-[13px] text-ink-600 md:mt-4 md:text-sm ${
-          fill
-            ? "min-h-0 flex-1 leading-[1.95] tracking-wide md:leading-[2.1] md:tracking-[0.04em] lg:leading-[2.25]"
-            : "max-w-3xl leading-relaxed"
-        }`}
-      >
-        {person.summary}
-      </p>
-
       {emperorId === "yingzong" && (
-        <div className="mt-4 border border-cinnabar/20 bg-cinnabar/[0.04] px-3 py-2 text-xs leading-relaxed text-ink-600">
+        <div className="mt-3 border border-cinnabar/20 bg-cinnabar/[0.04] px-3 py-2 text-xs leading-relaxed text-ink-600">
           <span className="font-display font-medium text-cinnabar">
             一人双年号
           </span>
@@ -100,7 +69,7 @@ export function EmperorArchiveCard({
       )}
 
       {events.length > 0 && (
-        <div className="mt-5">
+        <div className="mt-4">
           <p className="font-display text-[10px] tracking-[0.2em] text-ink-400">
             在位相关事件
           </p>
@@ -141,14 +110,14 @@ function NameBlock({
 }) {
   return (
     <div
-      className={`border px-3 py-2.5 ${
+      className={`border px-2.5 py-2 ${
         emphasize
           ? "border-ink-800/15 bg-gradient-to-b from-ink-50 to-ink-100/60"
           : "border-ink-800/10"
       }`}
     >
       <p className="text-[10px] tracking-[0.2em] text-ink-400">{label}</p>
-      <p className="mt-1 font-display text-xl font-bold tracking-wide text-ink-900">
+      <p className="mt-1 font-display text-lg font-bold tracking-wide text-ink-900">
         {value}
       </p>
       {sub && <p className="mt-0.5 text-xs text-ink-500">{sub}</p>}

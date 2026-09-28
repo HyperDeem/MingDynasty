@@ -33,7 +33,10 @@ export interface MingTerritorySnapshotMeta {
   regions: MingTerritoryRegionId[];
 }
 
-/** 按时间顺序的关键快照（非逐年） */
+/**
+ * 按时间顺序的关键快照（非逐年）
+ * description 据《明史·地理志》及明代官方碑刻记载改写，供界面摘录。
+ */
 export const MING_TERRITORY_SNAPSHOTS: MingTerritorySnapshotMeta[] = [
   {
     id: "1368-hongwu",
@@ -41,7 +44,8 @@ export const MING_TERRITORY_SNAPSHOTS: MingTerritorySnapshotMeta[] = [
     yearFrom: 1368,
     yearTo: 1401,
     label: "洪武开国",
-    description: "两京十三省雏形，北控漠南边缘，尚未经营交趾与奴儿干。",
+    description:
+      "《明史·地理志》：洪武初建都江表，革元中书省，置十三布政使司，分领天下府州县及羁縻诸司；又置都司卫所领番汉诸军。是时京师在应天，交趾布政司、奴儿干都司皆未建置。",
     path: "/geojson/ming/1368-hongwu.json",
     regions: ["core", "northwest"],
   },
@@ -52,7 +56,7 @@ export const MING_TERRITORY_SNAPSHOTS: MingTerritorySnapshotMeta[] = [
     yearTo: 1426,
     label: "永乐极盛",
     description:
-      "设交趾布政司，置奴儿干都司；版图北抵外兴安岭一带、南逾红河（示意）。",
+      "《明史·地理志》：成祖定都北京，以北平为直隶，增设贵州、交趾二布政使司。永乐七年置奴儿干都司；《敕修奴儿干永宁寺碑记》载其境「东濒海，西接兀良哈，南邻朝鲜，北至奴儿干北海」。",
     path: "/geojson/ming/1420-yongle-peak.json",
     regions: ["core", "jiaozhi", "nurgan", "northwest"],
   },
@@ -62,7 +66,8 @@ export const MING_TERRITORY_SNAPSHOTS: MingTerritorySnapshotMeta[] = [
     yearFrom: 1427,
     yearTo: 1448,
     label: "弃交趾之后",
-    description: "宣德二年弃交趾；奴儿干名义尚存，实际控制渐弱。",
+    description:
+      "《明史·地理志》：仁、宣之际，南交屡叛，旋复弃之外徼。宣德二年罢交趾布政使司。腹里之制，为京师、南京二直隶与十三布政使司。",
     path: "/geojson/ming/1435-post-jiaozhi.json",
     regions: ["core", "nurgan", "northwest"],
   },
@@ -73,7 +78,7 @@ export const MING_TERRITORY_SNAPSHOTS: MingTerritorySnapshotMeta[] = [
     yearTo: 1566,
     label: "土木之后 · 内缩",
     description:
-      "土木堡之变后北疆压力增大；奴儿干都司淡出，边界向长城—辽东一线收缩。",
+      "《明史·地理志》：终明之世，为直隶者二——京师、南京；为布政使司者十三。边陲要地称重镇者九：辽东、蓟州、宣府、大同、榆林、宁夏、甘肃、太原、固原，皆分统卫所关堡。",
     path: "/geojson/ming/1450-post-tumu.json",
     regions: ["core", "northwest"],
   },
@@ -83,7 +88,8 @@ export const MING_TERRITORY_SNAPSHOTS: MingTerritorySnapshotMeta[] = [
     yearFrom: 1567,
     yearTo: 1620,
     label: "万历中叶",
-    description: "九边长城为北界常态；东南海贸活跃，东北辽东仍为边镇。",
+    description:
+      "《明史·地理志》所载两京十三布政使司建置如故；北边仍以辽东、蓟州、宣府、大同、榆林、宁夏、甘肃、太原、固原九镇分统卫所关堡，为明代边防之常制。",
     path: "/geojson/ming/1582-wanli.json",
     regions: ["core", "northwest", "maritime"],
   },
@@ -93,7 +99,8 @@ export const MING_TERRITORY_SNAPSHOTS: MingTerritorySnapshotMeta[] = [
     yearFrom: 1621,
     yearTo: 1644,
     label: "明末",
-    description: "辽东失陷、流民四起；示意版图进一步收缩。",
+    description:
+      "《明史》本纪及《地理志》辽东诸卫所载：自天启间沈阳、辽阳相继失守，辽东都司故地多为后金所据。内地名义仍称两京十三布政使司，北边重镇残缺，防线收缩于山海关一带。",
     path: "/geojson/ming/1644-fall.json",
     regions: ["core"],
   },

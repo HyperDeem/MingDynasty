@@ -128,24 +128,24 @@ export interface CapitalMarker {
 
 export const MING_CAPITALS: Record<string, CapitalMarker[]> = {
   "1368-hongwu": [
-    { id: "nanjing", name: "南京", coordinates: [118.796, 32.06] },
+    { id: "nanjing", name: "应天", coordinates: [118.796, 32.06] },
   ],
   "1420-yongle-peak": [
-    { id: "beijing", name: "北京", coordinates: [116.407, 39.905] },
+    { id: "beijing", name: "京师", coordinates: [116.407, 39.905] },
     { id: "nanjing", name: "南京", coordinates: [118.796, 32.06] },
   ],
   "1435-post-jiaozhi": [
-    { id: "beijing", name: "北京", coordinates: [116.407, 39.905] },
+    { id: "beijing", name: "京师", coordinates: [116.407, 39.905] },
     { id: "nanjing", name: "南京", coordinates: [118.796, 32.06] },
   ],
   "1450-post-tumu": [
-    { id: "beijing", name: "北京", coordinates: [116.407, 39.905] },
+    { id: "beijing", name: "京师", coordinates: [116.407, 39.905] },
   ],
   "1582-wanli": [
-    { id: "beijing", name: "北京", coordinates: [116.407, 39.905] },
+    { id: "beijing", name: "京师", coordinates: [116.407, 39.905] },
   ],
   "1644-fall": [
-    { id: "beijing", name: "北京", coordinates: [116.407, 39.905] },
+    { id: "beijing", name: "京师", coordinates: [116.407, 39.905] },
   ],
 };
 

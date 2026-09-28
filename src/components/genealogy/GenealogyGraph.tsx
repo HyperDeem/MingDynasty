@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -11,12 +11,17 @@ import {
   getBloodPathIds,
   getEgoNeighborhood,
   getHighlightedEdges,
+  isEmperorId,
   reignTitlesLabel,
   type BloodEdge,
   type EgoLayoutPerson,
   type LineageNodeId,
   type LineagePerson,
 } from "@/data/lineage";
+import {
+  getEmperorPortraitSrc,
+  isLaterCopyPortrait,
+} from "@/data/emperor-portraits";
 
 const NODE_W = 118;
 const NODE_H = 72;
@@ -58,6 +63,12 @@ export function GenealogyGraph({
   /** 用户相对适配比例的缩放（1 = 刚好铺满视口） */
   const [userScale, setUserScale] = useState(1);
   const [viewportSize, setViewportSize] = useState({ w: 0, h: 0 });
+  const scaleRef = useRef(1);
+  const layoutRef = useRef({
+    offsetX: 0,
+    offsetY: 0,
+    persons: new Map<LineageNodeId, { drawX: number; drawY: number }>(),
+  });
 
   useEffect(() => {
     setUserScale(1);
@@ -67,7 +78,13 @@ export function GenealogyGraph({
     const vp = viewportRef.current;
     if (!vp) return;
     const measure = () => {
-      setViewportSize({ w: vp.clientWidth, h: vp.clientHeight });
+      const w = Math.round(vp.clientWidth);
+      const h = Math.round(vp.clientHeight);
+      setViewportSize((prev) => {
+        // 忽略滚动条显隐带来的 1–2px 抖动，避免 fitScale 正反馈抽搐
+        if (Math.abs(prev.w - w) < 3 && Math.abs(prev.h - h) < 3) return prev;
+        return { w, h };
+      });
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -110,12 +127,14 @@ export function GenealogyGraph({
     if (mode !== "ego" || viewportSize.w < 8 || viewportSize.h < 8) {
       return mode === "ego" ? 1 : 0.55;
     }
-    const pad = 0.92;
-    return Math.min(
-      viewportSize.w / canvas.width,
-      viewportSize.h / canvas.height
-    ) * pad;
-  }, [mode, viewportSize, canvas.width, canvas.height]);
+    const pad = 0.9;
+    return (
+      Math.min(
+        viewportSize.w / canvas.width,
+        viewportSize.h / canvas.height
+      ) * pad
+    );
+  }, [mode, viewportSize.w, viewportSize.h, canvas.width, canvas.height]);
 
   const scale =
     mode === "ego" ? fitScale * userScale : 0.55 * userScale;
@@ -127,36 +146,47 @@ export function GenealogyGraph({
     return m;
   }, [persons]);
 
-  const stageW = Math.max(canvas.width * scale, viewportSize.w || 0);
-  const stageH = Math.max(canvas.height * scale, viewportSize.h || 0);
+  // 略小于视口，避免「刚好贴边 → 出滚动条 → 视口变窄 → 缩放再变」循环
+  const stageW = Math.max(
+    canvas.width * scale,
+    Math.max(0, (viewportSize.w || 0) - 1)
+  );
+  const stageH = Math.max(
+    canvas.height * scale,
+    Math.max(0, (viewportSize.h || 0) - 1)
+  );
   const offsetX = Math.max(0, (stageW - canvas.width * scale) / 2);
   const offsetY = Math.max(0, (stageH - canvas.height * scale) / 2);
 
-  const scrollToFocus = useCallback(() => {
-    const person = personById.get(focusId);
-    const vp = viewportRef.current;
-    if (!person || !vp) return;
-    const targetX =
-      offsetX +
-      person.drawX * scale -
-      vp.clientWidth / 2 +
-      (NODE_W * scale) / 2;
-    const targetY =
-      offsetY +
-      person.drawY * scale -
-      vp.clientHeight / 2 +
-      (NODE_H * scale) / 2;
-    vp.scrollTo({
-      left: Math.max(0, targetX),
-      top: Math.max(0, targetY),
-      behavior: "smooth",
-    });
-  }, [focusId, scale, personById, offsetX, offsetY]);
+  scaleRef.current = scale;
+  layoutRef.current = {
+    offsetX,
+    offsetY,
+    persons: new Map(
+      persons.map((p) => [p.id, { drawX: p.drawX, drawY: p.drawY }])
+    ),
+  };
 
+  /** 仅在焦点切换时滚到中心；不跟缩放/视口抖动挂钩 */
   useEffect(() => {
-    const t = window.setTimeout(scrollToFocus, 80);
+    const t = window.setTimeout(() => {
+      const vp = viewportRef.current;
+      const person = layoutRef.current.persons.get(focusId);
+      if (!vp || !person) return;
+      const s = scaleRef.current;
+      const { offsetX: ox, offsetY: oy } = layoutRef.current;
+      const targetX =
+        ox + person.drawX * s - vp.clientWidth / 2 + (NODE_W * s) / 2;
+      const targetY =
+        oy + person.drawY * s - vp.clientHeight / 2 + (NODE_H * s) / 2;
+      vp.scrollTo({
+        left: Math.max(0, targetX),
+        top: Math.max(0, targetY),
+        behavior: "auto",
+      });
+    }, 40);
     return () => window.clearTimeout(t);
-  }, [scrollToFocus]);
+  }, [focusId, mode]);
 
   const minUser = mode === "ego" ? 0.75 : 0.7;
   const maxUser = mode === "ego" ? 1.45 : 2.4;
@@ -227,7 +257,7 @@ export function GenealogyGraph({
 
       <div
         ref={viewportRef}
-        className="scrollbar-timeline relative min-h-0 flex-1 overflow-auto bg-gradient-to-b from-ink-100/40 to-transparent"
+        className="scrollbar-timeline relative min-h-0 flex-1 overflow-auto bg-gradient-to-b from-ink-100/40 to-transparent [scrollbar-gutter:stable]"
         onWheel={(e) => {
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
@@ -238,7 +268,7 @@ export function GenealogyGraph({
         }}
       >
         <div
-          className="relative transition-[width,height] duration-200"
+          className="relative"
           style={{
             width: stageW || canvas.width * scale,
             height: stageH || canvas.height * scale,
@@ -455,6 +485,16 @@ function PersonNode({
 }) {
   const dual = person.reigns.length > 1;
   const dimmed = dimOutOfPath && !inPath && !isFocus;
+  const emperor =
+    person.isEmperor && isEmperorId(person.id) ? person.id : null;
+  const portraitSrc = emperor ? getEmperorPortraitSrc(emperor) : null;
+  const showPortrait =
+    Boolean(emperor) && lod === "full" && (isFocus || inPath);
+  const later = emperor ? isLaterCopyPortrait(emperor) : false;
+  const objectPos = later ? "object-[50%_35%]" : "object-[50%_12%]";
+  const portraitW = 44 * scale;
+  const portraitH = (dual ? NODE_H + 14 : NODE_H) * scale;
+  const gap = 6 * scale;
 
   if (lod === "dot") {
     const size = (person.isEmperor ? 14 : 10) * scale;
@@ -518,76 +558,113 @@ function PersonNode({
   }
 
   return (
-    <motion.button
-      type="button"
-      layout={false}
-      onClick={() => onSelect(person.id)}
-      className={`absolute flex flex-col items-stretch border text-left transition-shadow ${
-        person.isEmperor ? "bg-ink-50/95" : "border-dashed bg-ink-100/70"
-      } ${
-        isFocus
-          ? "border-cinnabar shadow-[0_0_0_3px_rgba(196,60,44,0.2)]"
-          : inPath
-            ? "border-ink-700/40"
-            : "border-ink-800/15"
-      } ${dimmed ? "opacity-40" : ""}`}
-      style={{
-        left: x * scale,
-        top: y * scale,
-        width: NODE_W * scale,
-        height: (dual ? NODE_H + 14 : NODE_H) * scale,
-        transformOrigin: "top left",
-      }}
-      animate={{ scale: isFocus ? 1.03 : 1 }}
-      transition={{ type: "spring", stiffness: 400, damping: 28 }}
-    >
-      <div className="h-1 shrink-0" style={{ background: person.accent }} />
-      <div className="flex min-h-0 flex-1 flex-col justify-center px-1.5 py-1">
-        <p
-          className="truncate font-display font-bold text-ink-900"
-          style={{ fontSize: Math.max(10, 12 * scale) }}
+    <>
+      {showPortrait && (
+        <button
+          type="button"
+          onClick={() => onSelect(person.id)}
+          title={`${person.name}御像`}
+          className={`absolute overflow-hidden border bg-ink-100 transition ${
+            isFocus
+              ? "border-cinnabar shadow-[0_0_0_2px_rgba(196,60,44,0.18)]"
+              : "border-ink-800/15"
+          } ${dimmed ? "opacity-40" : ""}`}
+          style={{
+            left: x * scale - portraitW - gap,
+            top: y * scale,
+            width: portraitW,
+            height: portraitH,
+            zIndex: isFocus ? 4 : 2,
+          }}
+          aria-label={`${person.name}画像`}
         >
-          {person.name}
-        </p>
-        {person.templeName && (
+          {portraitSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={portraitSrc}
+              alt=""
+              className={`h-full w-full object-cover ${objectPos}`}
+              draggable={false}
+            />
+          ) : (
+            <span
+              className="flex h-full w-full items-center justify-center font-display font-bold text-ink-600"
+              style={{ fontSize: Math.max(12, 16 * scale) }}
+            >
+              {person.name.slice(0, 1)}
+            </span>
+          )}
+        </button>
+      )}
+      <motion.button
+        type="button"
+        layout={false}
+        onClick={() => onSelect(person.id)}
+        className={`absolute flex flex-col items-stretch border text-left transition-shadow ${
+          person.isEmperor ? "bg-ink-50/95" : "border-dashed bg-ink-100/70"
+        } ${
+          isFocus
+            ? "border-cinnabar shadow-[0_0_0_3px_rgba(196,60,44,0.2)]"
+            : inPath
+              ? "border-ink-700/40"
+              : "border-ink-800/15"
+        } ${dimmed ? "opacity-40" : ""}`}
+        style={{
+          left: x * scale,
+          top: y * scale,
+          width: NODE_W * scale,
+          height: (dual ? NODE_H + 14 : NODE_H) * scale,
+          zIndex: isFocus ? 3 : 1,
+        }}
+      >
+        <div className="h-1 shrink-0" style={{ background: person.accent }} />
+        <div className="flex min-h-0 flex-1 flex-col justify-center px-1.5 py-1">
           <p
-            className="truncate text-ink-500"
-            style={{ fontSize: Math.max(8, 10 * scale) }}
+            className="truncate font-display font-bold text-ink-900"
+            style={{ fontSize: Math.max(10, 12 * scale) }}
           >
-            {person.templeName}
+            {person.name}
           </p>
-        )}
-        {!person.isEmperor && (
-          <p
-            className="truncate text-ink-400"
-            style={{ fontSize: Math.max(8, 9 * scale) }}
-          >
-            {person.posthumousName}
-          </p>
-        )}
-        {person.reigns.length > 0 && (
-          <div className="mt-0.5 flex flex-wrap gap-0.5">
-            {person.reigns.map((r) => (
-              <span
-                key={r.title}
-                className="border border-ink-800/15 bg-ink-100/80 px-1 font-display text-ink-700"
-                style={{ fontSize: Math.max(8, 9 * scale) }}
-              >
-                {r.title}
-              </span>
-            ))}
-          </div>
-        )}
-        {person.throneOrder != null && (
-          <p
-            className="mt-0.5 text-ink-400"
-            style={{ fontSize: Math.max(7, 8 * scale) }}
-          >
-            第 {person.throneOrder} 任 · {reignTitlesLabel(person)}
-          </p>
-        )}
-      </div>
-    </motion.button>
+          {person.templeName && (
+            <p
+              className="truncate text-ink-500"
+              style={{ fontSize: Math.max(8, 10 * scale) }}
+            >
+              {person.templeName}
+            </p>
+          )}
+          {!person.isEmperor && (
+            <p
+              className="truncate text-ink-400"
+              style={{ fontSize: Math.max(8, 9 * scale) }}
+            >
+              {person.posthumousName}
+            </p>
+          )}
+          {person.reigns.length > 0 && (
+            <div className="mt-0.5 flex flex-wrap gap-0.5">
+              {person.reigns.map((r) => (
+                <span
+                  key={r.title}
+                  className="border border-ink-800/15 bg-ink-100/80 px-1 font-display text-ink-700"
+                  style={{ fontSize: Math.max(8, 9 * scale) }}
+                >
+                  {r.title}
+                </span>
+              ))}
+            </div>
+          )}
+          {person.throneOrder != null && (
+            <p
+              className="mt-0.5 text-ink-400"
+              style={{ fontSize: Math.max(7, 8 * scale) }}
+            >
+              第 {person.throneOrder} 任 · {reignTitlesLabel(person)}
+            </p>
+          )}
+        </div>
+      </motion.button>
+    </>
   );
 }
 

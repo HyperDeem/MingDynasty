@@ -142,42 +142,49 @@ export function TerritoryMapPanel({
           />
         )}
 
-        {/* 摘要 */}
+        {/* 疆域快照：置于舞台左下，避开左上「全景明朝」顶栏 */}
         <div
-          className={`pointer-events-none absolute z-10 min-w-[168px] rounded-[7px] border border-[#e3dcca] bg-[rgba(251,249,243,0.9)] px-3 py-2.5 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-[8px] ${
+          className={`pointer-events-none absolute z-10 w-[min(88vw,16.5rem)] rounded-md border border-[#e3dcca] bg-[rgba(251,249,243,0.92)] px-3 py-2.5 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-[8px] md:w-[18.5rem] ${
             isStage
-              ? "left-3 top-16 md:left-5 md:top-[4.75rem]"
+              ? "bottom-3 left-3 md:bottom-4 md:left-5"
               : "left-3 top-3 md:left-4 md:top-3.5"
           }`}
         >
-          <div className="flex items-baseline justify-between gap-4">
-            <span className="text-[10.5px] text-[#898d80]">疆域快照</span>
-            <b className="font-display text-[17px] leading-none text-[#222621]">
-              {snapshot.label}
-            </b>
-          </div>
-          <div className="mt-1.5 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-[#4f544c]">
-            <span className="tabular-nums">{currentYear} 年</span>
-            <span>{coreProvinces.length} 省区</span>
-            <span>{extras.features.length} 外延</span>
-            {capitals.length > 0 && (
-              <span>
-                都城 {capitals.map((c: CapitalMarker) => c.name).join("、")}
+          <header className="flex items-baseline justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-display text-[9px] tracking-[0.28em] text-[#b6584f]">
+                疆域快照
+              </p>
+              <h3 className="mt-0.5 font-display text-base font-bold leading-tight tracking-wide text-[#222621] md:text-lg">
+                {snapshot.label}
+              </h3>
+            </div>
+            {loading && (
+              <span className="shrink-0 text-[10px] text-[#898d80]">
+                切换中…
               </span>
             )}
-          </div>
-          {isStage && (
-            <p className="mt-1.5 max-w-[220px] text-[10px] leading-snug text-[#898d80]">
-              {snapshot.description}
+          </header>
+
+          {capitals.length > 0 && (
+            <p className="mt-1.5 flex items-baseline gap-2 text-[11px] text-[#4f544c]">
+              <span className="shrink-0 font-display text-[9px] tracking-[0.2em] text-[#898d80]">
+                都城
+              </span>
+              <span className="font-display text-[12px] font-semibold tracking-wide text-[#222621]">
+                {capitals.map((c: CapitalMarker) => c.name).join(" · ")}
+              </span>
             </p>
           )}
+
+          <p className="mt-1.5 line-clamp-4 text-[10px] leading-[1.65] tracking-wide text-[#4f544c] md:line-clamp-5 md:text-[11px] md:leading-[1.7]">
+            {snapshot.description}
+          </p>
+
           {hoverName && (
-            <p className="mt-1 font-display text-xs text-[#b6584f]">
+            <p className="mt-1.5 border-t border-dashed border-[#e3dcca] pt-1.5 font-display text-[11px] tracking-wide text-[#b6584f]">
               {hoverName}
             </p>
-          )}
-          {loading && (
-            <p className="mt-1 text-[10px] text-[#898d80]">切换中…</p>
           )}
         </div>
 

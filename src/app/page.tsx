@@ -14,6 +14,7 @@ import {
   type EmperorId,
 } from "@/data/emperors";
 import { getDefaultPeriodForEmperor } from "@/data/lineage";
+import { resolveTerritorySnapshot } from "@/data/ming-territory";
 import { Timeline } from "@/components/Timeline";
 import { TerritoryMapPanel } from "@/components/map/TerritoryMapPanel";
 import { EmperorDrawer } from "@/components/overlays/EmperorDrawer";
@@ -41,6 +42,11 @@ export default function HomePage() {
   const territory = useMemo(
     () => getPeriodContent(periodId).territory,
     [periodId]
+  );
+
+  const territorySnapshot = useMemo(
+    () => resolveTerritorySnapshot(currentYear),
+    [currentYear]
   );
 
   const syncPeriodYear = useCallback((nextPeriod: PeriodId, year?: number) => {
@@ -159,6 +165,9 @@ export default function HomePage() {
         <Timeline
           activeEventId={highlightEventId}
           activeEmperorId={emperorId}
+          activePeriodId={periodId}
+          highlightYearFrom={territorySnapshot.yearFrom}
+          highlightYearTo={territorySnapshot.yearTo}
           interactionLocked={emperorId != null}
           onSelectEvent={handleSelectEvent}
           onSelectEmperor={handleSelectEmperor}

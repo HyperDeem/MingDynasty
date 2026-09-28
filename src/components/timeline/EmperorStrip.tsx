@@ -6,6 +6,7 @@ import {
   type EmperorBand,
   type EmperorId,
 } from "@/data/emperors";
+import type { PeriodId } from "@/data/ming-dynasty";
 
 export interface BandLayout {
   band: EmperorBand;
@@ -22,6 +23,11 @@ interface EmperorStripProps {
   /** 是否在色块上显示年号 */
   showEraLabels?: boolean;
   activeEmperorId: EmperorId | null;
+  /** 当前年号（组内焦点，略强于区间高亮） */
+  activePeriodId?: PeriodId | null;
+  /** 疆域快照覆盖年份 → 高亮所有与之相交的色带 */
+  highlightYearFrom?: number | null;
+  highlightYearTo?: number | null;
   hoveredId: string | null;
   onHover: (bandKey: string | null) => void;
   onSelect: (band: EmperorBand) => void;
@@ -31,11 +37,23 @@ function bandKey(band: EmperorBand) {
   return `${band.id}-${band.startYear}`;
 }
 
+function overlapsYearRange(
+  band: EmperorBand,
+  from: number | null | undefined,
+  to: number | null | undefined
+) {
+  if (from == null || to == null) return false;
+  return band.startYear <= to && band.endYear >= from;
+}
+
 export function EmperorStrip({
   layouts,
   compact = false,
   showEraLabels = false,
   activeEmperorId,
+  activePeriodId = null,
+  highlightYearFrom = null,
+  highlightYearTo = null,
   hoveredId,
   onHover,
   onSelect,
@@ -45,23 +63,77 @@ export function EmperorStrip({
       ? layouts.find((l) => bandKey(l.band) === hoveredId)
       : undefined;
 
-  const activeLayouts = activeEmperorId
-    ? layouts.filter((l) => l.band.id === activeEmperorId)
-    : [];
+  const inRangeLayouts = layouts.filter((l) =>
+    overlapsYearRange(l.band, highlightYearFrom, highlightYearTo)
+  );
+  const hasRange = inRangeLayouts.length > 0;
+
+  /** 组内「当前」年号：优先 period，其次帝王抽屉 */
+  const isFocusBand = (band: EmperorBand) => {
+    if (activePeriodId && band.periodIds.includes(activePeriodId)) return true;
+    if (
+      !hasRange &&
+      activeEmperorId &&
+      band.id === activeEmperorId
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  const focusLayouts = layouts.filter((l) => isFocusBand(l.band));
+  const tipLayout = hovered ?? focusLayouts[0] ?? inRangeLayouts[0];
+
+  /** 连续区间托底：从第一个到最后一个相交色带 */
+  const rangeBracket =
+    inRangeLayouts.length > 0
+      ? {
+          left: inRangeLayouts[0]!.offset,
+          right:
+            inRangeLayouts[inRangeLayouts.length - 1]!.offset +
+            inRangeLayouts[inRangeLayouts.length - 1]!.size,
+        }
+      : null;
 
   return (
     <div
       className={`relative w-full shrink-0 ${
-        compact ? "h-5 md:h-6" : "h-9 md:h-10"
+        compact ? "h-6 md:h-7" : "h-9 md:h-10"
       }`}
       aria-label="在位皇帝色带（年号）"
     >
-      <div className="absolute inset-0 overflow-hidden rounded-sm">
+      {/* 区间柔光托底 */}
+      {rangeBracket && (
+        <motion.div
+          className="pointer-events-none absolute -inset-y-1 rounded-sm"
+          initial={false}
+          animate={{
+            left: `${rangeBracket.left}%`,
+            width: `${rangeBracket.right - rangeBracket.left}%`,
+          }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(255,252,245,0.55) 0%, rgba(255,248,235,0.2) 45%, rgba(196,60,44,0.08) 100%)",
+            boxShadow:
+              "0 0 0 1px rgba(48,42,28,0.06), 0 6px 18px -12px rgba(48,42,28,0.28)",
+          }}
+          aria-hidden
+        />
+      )}
+
+      <div className="absolute inset-0 overflow-hidden rounded-sm ring-1 ring-ink-800/[0.06]">
         {layouts.map(({ band, offset, size }, index) => {
           const key = bandKey(band);
           const isHovered = hoveredId === key;
-          const isActive = activeEmperorId === band.id;
-          const dimmed = activeEmperorId !== null && !isActive && !isHovered;
+          const inRange = overlapsYearRange(
+            band,
+            highlightYearFrom,
+            highlightYearTo
+          );
+          const isFocus = isFocusBand(band);
+          const lit = inRange || isFocus || isHovered;
+          const dimmed = (hasRange || focusLayouts.length > 0) && !lit;
 
           return (
             <button
@@ -73,71 +145,108 @@ export function EmperorStrip({
               onFocus={() => onHover(key)}
               onBlur={() => onHover(null)}
               onClick={() => onSelect(band)}
-              className="absolute top-0 bottom-0 transition-[opacity,filter] duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cinnabar/50"
+              className="absolute top-0 bottom-0 transition-[opacity,filter] duration-300 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cinnabar/40"
               style={{
                 left: `${offset}%`,
                 width: `${size}%`,
-                background: `linear-gradient(90deg, ${band.accent}, ${band.color})`,
-                opacity: dimmed ? 0.28 : isActive || isHovered ? 1 : 0.88,
-                filter:
-                  isActive || isHovered
-                    ? "saturate(1.15) brightness(1.04)"
-                    : "saturate(0.92)",
-                zIndex: isHovered || isActive ? 2 : 1,
-                boxShadow: isActive
-                  ? "inset 0 0 0 2px rgba(255,255,255,0.55)"
-                  : index > 0
-                    ? "inset 1px 0 0 rgba(255,255,255,0.14)"
-                    : undefined,
+                background: lit
+                  ? `linear-gradient(165deg, ${band.accent} 0%, ${band.color} 72%)`
+                  : `linear-gradient(180deg, ${band.accent}99, ${band.color}aa)`,
+                opacity: dimmed ? 0.22 : lit ? 1 : 0.72,
+                filter: dimmed
+                  ? "saturate(0.55) brightness(0.96)"
+                  : isFocus
+                    ? "saturate(1.12) brightness(1.05)"
+                    : inRange
+                      ? "saturate(1.05) brightness(1.02)"
+                      : "saturate(0.85)",
+                zIndex: isHovered || isFocus ? 3 : inRange ? 2 : 1,
               }}
-              aria-pressed={isActive}
+              aria-pressed={inRange || isFocus}
             >
+              {/* 丝质高光 */}
+              {lit && (
+                <span
+                  className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent"
+                  aria-hidden
+                />
+              )}
+              {/* 焦点年号：底部细金线，避免粗描边 */}
+              {isFocus && (
+                <span
+                  className="pointer-events-none absolute inset-x-[12%] bottom-0 h-[2px] rounded-full bg-[rgba(251,249,243,0.85)]"
+                  style={{
+                    boxShadow: `0 0 8px 0 ${band.accent}88`,
+                  }}
+                  aria-hidden
+                />
+              )}
               {showEraLabels && (
-                <span className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 truncate px-0.5 text-center font-display text-[10px] font-medium leading-none text-white/95 drop-shadow md:text-[11px]">
+                <span
+                  className={`pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 truncate px-0.5 text-center font-display text-[10px] font-medium leading-none drop-shadow md:text-[11px] ${
+                    lit ? "text-white/95" : "text-white/55"
+                  }`}
+                >
                   {band.eraLabel}
                 </span>
+              )}
+              {index > 0 && (
+                <span
+                  className="pointer-events-none absolute inset-y-[18%] left-0 w-px bg-white/15"
+                  aria-hidden
+                />
               )}
             </button>
           );
         })}
       </div>
 
-      {!compact && (
+      {/* 区间两端竖饰 */}
+      {rangeBracket && (
+        <div
+          className="pointer-events-none absolute -bottom-1.5 h-1"
+          style={{
+            left: `${rangeBracket.left}%`,
+            width: `${rangeBracket.right - rangeBracket.left}%`,
+          }}
+          aria-hidden
+        >
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-ink-800/25 to-transparent" />
+          <div className="absolute left-0 top-0 h-1.5 w-px bg-ink-800/30" />
+          <div className="absolute right-0 top-0 h-1.5 w-px bg-ink-800/30" />
+        </div>
+      )}
+
+      {!compact && tipLayout && (
         <AnimatePresence>
-          {(hovered || (activeLayouts.length > 0 && !hovered)) &&
-            (() => {
-              const layout = hovered ?? activeLayouts[0];
-              const { band, offset, size } = layout;
-              const mid = offset + size / 2;
-              return (
-                <motion.div
-                  key={`tip-${bandKey(band)}`}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18 }}
-                  className="pointer-events-none absolute bottom-full z-40 mb-2 max-w-[12rem] -translate-x-1/2"
-                  style={{ left: `${mid}%` }}
-                >
-                  <div className="rounded border border-ink-800/10 bg-ink-900/92 px-2.5 py-1.5 shadow-lg backdrop-blur-sm">
-                    <p className="font-display text-[12px] font-medium text-ink-50">
-                      {band.eraLabel}
-                      <span className="ml-1.5 text-[11px] font-normal text-ink-300">
-                        {band.displayName.replace(/（复位）/, "")}
-                      </span>
-                    </p>
-                    <p className="mt-0.5 text-[10px] tabular-nums text-ink-300">
-                      {getEmperorDisplayRange(band)}
-                    </p>
-                    {hovered && (
-                      <p className="mt-0.5 text-[10px] text-ink-400">
-                        点击查看血缘树与帝位链
-                      </p>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })()}
+          <motion.div
+            key={`tip-${bandKey(tipLayout.band)}`}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="pointer-events-none absolute bottom-full z-40 mb-2 max-w-[12rem] -translate-x-1/2"
+            style={{
+              left: `${tipLayout.offset + tipLayout.size / 2}%`,
+            }}
+          >
+            <div className="rounded border border-ink-800/10 bg-ink-900/92 px-2.5 py-1.5 shadow-lg backdrop-blur-sm">
+              <p className="font-display text-[12px] font-medium text-ink-50">
+                {tipLayout.band.eraLabel}
+                <span className="ml-1.5 text-[11px] font-normal text-ink-300">
+                  {tipLayout.band.displayName.replace(/（复位）/, "")}
+                </span>
+              </p>
+              <p className="mt-0.5 text-[10px] tabular-nums text-ink-300">
+                {getEmperorDisplayRange(tipLayout.band)}
+              </p>
+              {hovered && (
+                <p className="mt-0.5 text-[10px] text-ink-400">
+                  点击查看血缘树与帝位链
+                </p>
+              )}
+            </div>
+          </motion.div>
         </AnimatePresence>
       )}
     </div>

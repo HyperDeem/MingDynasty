@@ -26,6 +26,11 @@ import {
 interface TimelineProps {
   activeEventId: string | null;
   activeEmperorId: EmperorId | null;
+  /** 当前年号（组内焦点） */
+  activePeriodId?: PeriodId | null;
+  /** 疆域快照覆盖年份，高亮所有相交色带 */
+  highlightYearFrom?: number | null;
+  highlightYearTo?: number | null;
   onSelectEvent: (event: ChronicleEvent) => void;
   onSelectEmperor: (band: EmperorBand) => void;
   /** 点击年号簇：同步时期/年份到地图，不强制开浮层 */
@@ -162,6 +167,9 @@ function computeTrackHeight(opts: {
 export function Timeline({
   activeEventId,
   activeEmperorId,
+  activePeriodId = null,
+  highlightYearFrom = null,
+  highlightYearTo = null,
   onSelectEvent,
   onSelectEmperor,
   onSelectEra,
@@ -483,10 +491,10 @@ export function Timeline({
         }
       }}
       animate={{
-        y: !interactionLocked && !expanded && hinted ? -4 : 0,
+        // 不用位移/缩放做悬停提示，避免分割线附近进出自激抽搐
         boxShadow:
           !interactionLocked && !expanded && hinted
-            ? "0 -6px 20px -8px rgba(48,42,28,0.18)"
+            ? "0 -4px 18px -10px rgba(48,42,28,0.16)"
             : "0 0 0 0 rgba(0,0,0,0)",
       }}
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
@@ -494,8 +502,8 @@ export function Timeline({
       <motion.div
         className="px-4 md:px-6"
         animate={{
-          paddingTop: expanded ? 10 : hinted ? 8 : 6,
-          paddingBottom: expanded ? 12 : hinted ? 9 : 6,
+          paddingTop: expanded ? 10 : 6,
+          paddingBottom: expanded ? 12 : 6,
         }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
       >
@@ -625,19 +633,21 @@ export function Timeline({
           )}
         </AnimatePresence>
 
-        <motion.div
-          animate={{
-            scaleY: !expanded && hinted ? 1.08 : 1,
-            scaleX: !expanded && hinted ? 1.01 : 1,
-          }}
-          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-          style={{ transformOrigin: "center bottom" }}
+        <div
+          className={
+            !expanded && hinted
+              ? "brightness-[1.03] saturate-[1.06] transition-[filter] duration-300"
+              : "transition-[filter] duration-300"
+          }
         >
           <EmperorStrip
             layouts={bandLayouts}
             compact={!expanded}
             showEraLabels={expanded}
             activeEmperorId={activeEmperorId}
+            activePeriodId={activePeriodId}
+            highlightYearFrom={highlightYearFrom}
+            highlightYearTo={highlightYearTo}
             hoveredId={hoveredBand}
             onHover={setHoveredBand}
             onSelect={(band) => {
@@ -645,7 +655,7 @@ export function Timeline({
               onSelectEmperor(band);
             }}
           />
-        </motion.div>
+        </div>
 
         {!expanded && (
           <motion.p

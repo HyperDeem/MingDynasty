@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { EmperorId } from "@/data/emperors";
 import {
@@ -22,6 +22,7 @@ import { EmperorArchiveCard } from "@/components/genealogy/EmperorArchiveCard";
 import { EmperorPortrait } from "@/components/EmperorPortrait";
 
 type EmpTab = "bio" | "lineage" | "archive";
+type ArchiveSection = "card" | "chain" | "inherit";
 
 const TABS: { id: EmpTab; label: string }[] = [
   { id: "bio", label: "简介" },
@@ -43,13 +44,23 @@ export function EmperorDrawer({
   const [tab, setTab] = useState<EmpTab>("bio");
   const [focusId, setFocusId] = useState<LineageNodeId | null>(emperorId);
   const [panoramaOpen, setPanoramaOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState<ArchiveSection | null>(
+    "card"
+  );
+  /** 仅从关闭→打开时重置到简介；血缘内切换帝王不切页签 */
+  const wasOpenRef = useRef(false);
 
   useEffect(() => {
     if (emperorId) {
       setFocusId(emperorId);
-      setTab("bio");
-      setPanoramaOpen(false);
+      if (!wasOpenRef.current) {
+        setTab("bio");
+        setPanoramaOpen(false);
+        setArchiveOpen("card");
+      }
+      wasOpenRef.current = true;
     } else {
+      wasOpenRef.current = false;
       setPanoramaOpen(false);
     }
   }, [emperorId]);
@@ -62,12 +73,15 @@ export function EmperorDrawer({
     [onSelectEmperor]
   );
 
+  const toggleArchive = useCallback((id: ArchiveSection) => {
+    setArchiveOpen((prev) => (prev === id ? null : id));
+  }, []);
+
   const activeEmperor: EmperorId | null =
     focusId && isEmperorId(focusId) ? focusId : emperorId;
 
   const neighbors = useMemo(
-    () =>
-      activeEmperor ? getSuccessionNeighbors(activeEmperor) : null,
+    () => (activeEmperor ? getSuccessionNeighbors(activeEmperor) : null),
     [activeEmperor]
   );
   const prevEmperor = neighbors?.prev
@@ -75,6 +89,9 @@ export function EmperorDrawer({
     : null;
   const nextEmperor = neighbors?.next
     ? getEmperorPerson(neighbors.next.emperorId)
+    : null;
+  const archivePerson = activeEmperor
+    ? getEmperorPerson(activeEmperor)
     : null;
 
   const periodId = activeEmperor
@@ -92,7 +109,7 @@ export function EmperorDrawer({
         onClose={onClose}
         side="right"
       >
-        {activeEmperor && emperor && (
+        {activeEmperor && emperor && archivePerson && (
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="flex shrink-0 gap-1 border-b border-ink-800/10 px-2 py-1.5 md:px-3 md:py-2">
               {TABS.map((t) => (
@@ -113,7 +130,8 @@ export function EmperorDrawer({
 
             <AnimatePresence mode="wait">
               <motion.div
-                key={`${activeEmperor}-${tab}`}
+                // 血缘页保持挂载，避免点节点时整页淡入淡出造成抽搐
+                key={tab === "lineage" ? "lineage" : `${tab}-${activeEmperor}`}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
@@ -134,11 +152,6 @@ export function EmperorDrawer({
                           <h3 className="font-display text-lg font-bold tracking-wide text-ink-900 md:text-xl md:tracking-wider lg:text-2xl">
                             {emperor.name}
                           </h3>
-                          <p className="mt-1 text-xs tracking-wide text-ink-500 md:mt-1.5 md:text-sm md:tracking-wider">
-                            {emperor.templeName}
-                            <span className="mx-1.5 text-ink-300">·</span>
-                            年号 {emperor.reignTitle}
-                          </p>
                           <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] text-ink-500 md:mt-3 md:gap-y-2 md:text-xs">
                             <div>
                               <dt className="tracking-wider text-ink-400">
@@ -243,16 +256,51 @@ export function EmperorDrawer({
                 )}
 
                 {tab === "archive" && (
-                  <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-timeline">
-                    <EmperorArchiveCard emperorId={activeEmperor} />
-                    <SuccessionChain
-                      activeId={activeEmperor}
-                      onSelect={(id) => handleSelectNode(id)}
-                    />
-                    <InheritanceBar
-                      emperorId={activeEmperor}
-                      onNavigate={handleSelectNode}
-                    />
+                  <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2 scrollbar-timeline md:p-3">
+                    <ArchiveThumb
+                      eyebrow="身份档"
+                      title={archivePerson.name}
+                      subtitle={[
+                        archivePerson.templeName,
+                        archivePerson.reigns[0]?.title,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                      open={archiveOpen === "card"}
+                      onToggle={() => toggleArchive("card")}
+                    >
+                      <EmperorArchiveCard emperorId={activeEmperor} />
+                    </ArchiveThumb>
+
+                    <ArchiveThumb
+                      eyebrow="承袭链"
+                      title="明朝十六帝"
+                      subtitle="英宗一人一席 · 点击展开"
+                      open={archiveOpen === "chain"}
+                      onToggle={() => toggleArchive("chain")}
+                    >
+                      <SuccessionChain
+                        activeId={activeEmperor}
+                        onSelect={(id) => handleSelectNode(id)}
+                      />
+                    </ArchiveThumb>
+
+                    <ArchiveThumb
+                      eyebrow="继承"
+                      title="前后任对比"
+                      subtitle={[
+                        prevEmperor?.reigns[0]?.title ?? "开国",
+                        archivePerson.reigns[0]?.title,
+                        nextEmperor?.reigns[0]?.title ?? "终祚",
+                      ].join(" → ")}
+                      open={archiveOpen === "inherit"}
+                      onToggle={() => toggleArchive("inherit")}
+                    >
+                      <InheritanceBar
+                        emperorId={activeEmperor}
+                        onNavigate={handleSelectNode}
+                      />
+                    </ArchiveThumb>
                   </div>
                 )}
               </motion.div>
@@ -270,5 +318,71 @@ export function EmperorDrawer({
         />
       )}
     </>
+  );
+}
+
+function ArchiveThumb({
+  eyebrow,
+  title,
+  subtitle,
+  open,
+  onToggle,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-sm border border-ink-800/12 bg-ink-50/70">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-ink-800/[0.04] md:px-3.5"
+      >
+        <span className="flex h-10 w-10 shrink-0 flex-col items-center justify-center border border-ink-800/10 bg-ink-100/80">
+          <span className="font-display text-[9px] tracking-wider text-cinnabar">
+            {eyebrow.slice(0, 2)}
+          </span>
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-display text-[10px] tracking-[0.22em] text-ink-400">
+            {eyebrow}
+          </span>
+          <span className="mt-0.5 block truncate font-display text-sm font-semibold text-ink-900">
+            {title}
+          </span>
+          <span className="mt-0.5 block truncate text-[11px] text-ink-500">
+            {subtitle}
+          </span>
+        </span>
+        <span
+          className={`shrink-0 font-display text-xs text-ink-400 transition ${
+            open ? "rotate-90" : ""
+          }`}
+          aria-hidden
+        >
+          ›
+        </span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="body"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden border-t border-ink-800/10"
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

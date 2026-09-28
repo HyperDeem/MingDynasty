@@ -16,6 +16,7 @@ import {
   type CapitalMarker,
 } from "@/data/ming-map-layers";
 import {
+  clampViewToContent,
   fitBounds,
   lonLatToMercator,
   panBy,
@@ -28,11 +29,14 @@ import {
 
 const CHINA_URL = "/geojson/china-provinces.json";
 
-/** 中国本土紧凑视域 */
+/**
+ * 明朝疆域紧凑视域：收束海洋与漠北留白，仍覆盖交趾—辽东示意范围
+ */
 const CHINA_FOCUS_BBOX: [[number, number], [number, number]] = [
-  [73, 17.5],
-  [135.5, 53.8],
+  [82, 20.2],
+  [127.5, 46.8],
 ];
+const MAP_FIT_PADDING = 12;
 
 export interface GeoMapProps {
   coreProvinces: readonly string[];
@@ -436,29 +440,45 @@ export function GeoMap({
     return true;
   }, []);
 
+  const applyView = useCallback(
+    (next: ViewTransform) => {
+      const { w, h } = sizeRef.current;
+      viewRef.current = clampViewToContent(
+        next,
+        CHINA_FOCUS_BBOX,
+        w,
+        h,
+        0.16
+      );
+      pathsCacheRef.current = null;
+      paint();
+    },
+    [paint]
+  );
+
   const resetView = useCallback(
     (preserveZoom: boolean) => {
       if (!syncCanvasSize()) return;
       const { w, h } = sizeRef.current;
-      const base = fitBounds(CHINA_FOCUS_BBOX, w, h, 32);
+      const base = fitBounds(CHINA_FOCUS_BBOX, w, h, MAP_FIT_PADDING);
       baseViewRef.current = base;
       if (!preserveZoom) {
         zoomFactorRef.current = 1;
-        viewRef.current = { ...base };
+        applyView({ ...base });
       } else {
-        viewRef.current = zoomAt(
-          base,
-          w / 2,
-          h / 2,
-          zoomFactorRef.current,
-          base.scale * 0.85,
-          base.scale * 8
+        applyView(
+          zoomAt(
+            base,
+            w / 2,
+            h / 2,
+            zoomFactorRef.current,
+            base.scale * 0.9,
+            base.scale * 8
+          )
         );
       }
-      pathsCacheRef.current = null;
-      paint();
     },
-    [paint, syncCanvasSize]
+    [applyView, syncCanvasSize]
   );
 
   // 加载省界（只跑一次）
@@ -477,33 +497,33 @@ export function GeoMap({
           zoomIn: () => {
             const { w, h } = sizeRef.current;
             zoomFactorRef.current = Math.min(8, zoomFactorRef.current * 1.28);
-            viewRef.current = zoomAt(
-              viewRef.current,
-              w / 2,
-              h / 2,
-              1.28,
-              baseViewRef.current.scale * 0.85,
-              baseViewRef.current.scale * 8
+            applyView(
+              zoomAt(
+                viewRef.current,
+                w / 2,
+                h / 2,
+                1.28,
+                baseViewRef.current.scale * 0.9,
+                baseViewRef.current.scale * 8
+              )
             );
-            pathsCacheRef.current = null;
-            paint();
           },
           zoomOut: () => {
             const { w, h } = sizeRef.current;
             zoomFactorRef.current = Math.max(
-              0.85,
+              0.9,
               zoomFactorRef.current / 1.28
             );
-            viewRef.current = zoomAt(
-              viewRef.current,
-              w / 2,
-              h / 2,
-              1 / 1.28,
-              baseViewRef.current.scale * 0.85,
-              baseViewRef.current.scale * 8
+            applyView(
+              zoomAt(
+                viewRef.current,
+                w / 2,
+                h / 2,
+                1 / 1.28,
+                baseViewRef.current.scale * 0.9,
+                baseViewRef.current.scale * 8
+              )
             );
-            pathsCacheRef.current = null;
-            paint();
           },
           reset: () => resetView(false),
         });
@@ -617,9 +637,9 @@ export function GeoMap({
       if (!canvas) return null;
       const ctx = canvas.getContext("2d");
       if (!ctx) return null;
-      const { dpr } = sizeRef.current;
-      // Path 建在 CSS 像素空间；命中检测需带上 dpr 变换
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // Path 建在 CSS 像素空间；命中检测必须用单位矩阵，
+      // 若带 dpr 变换会把指针坐标放大，造成悬停省份与光标错位
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       const view = viewRef.current;
       const paths = getPaths(view);
 
@@ -664,9 +684,7 @@ export function GeoMap({
       const dy = e.clientY - dragRef.current.y;
       dragRef.current.x = e.clientX;
       dragRef.current.y = e.clientY;
-      viewRef.current = panBy(viewRef.current, dx, dy);
-      pathsCacheRef.current = null;
-      paint();
+      applyView(panBy(viewRef.current, dx, dy));
       return;
     }
 
@@ -674,11 +692,11 @@ export function GeoMap({
     const name = hit?.name ?? null;
     if (name !== hoverRef.current) {
       hoverRef.current = name;
-      if (hit?.isCore) {
-        hoverCbRef.current?.("两京十三省（示意）", { name: hit.name });
-      } else {
-        hoverCbRef.current?.(name, hit ? { name: hit.name } : null);
-      }
+      // 始终回报真实地名；核心省在绘制层已有高亮，文案不再替换成总称
+      hoverCbRef.current?.(
+        name,
+        hit ? { name: hit.name, isCore: hit.isCore } : null
+      );
       paint();
     }
     if (canvasRef.current) {
@@ -713,19 +731,19 @@ export function GeoMap({
     const factor = e.deltaY > 0 ? 1 / 1.12 : 1.12;
     const base = baseViewRef.current;
     zoomFactorRef.current = Math.max(
-      0.85,
+      0.9,
       Math.min(8, zoomFactorRef.current * factor)
     );
-    viewRef.current = zoomAt(
-      viewRef.current,
-      e.clientX - rect.left,
-      e.clientY - rect.top,
-      factor,
-      base.scale * 0.85,
-      base.scale * 8
+    applyView(
+      zoomAt(
+        viewRef.current,
+        e.clientX - rect.left,
+        e.clientY - rect.top,
+        factor,
+        base.scale * 0.9,
+        base.scale * 8
+      )
     );
-    pathsCacheRef.current = null;
-    paint();
   };
 
   return (

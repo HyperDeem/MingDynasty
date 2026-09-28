@@ -147,6 +147,58 @@ export function panBy(view: ViewTransform, dx: number, dy: number): ViewTransfor
   return { ...view, tx: view.tx + dx, ty: view.ty + dy };
 }
 
+/**
+ * 限制平移/缩放后内容 bbox 不至于拖出视口过多空白。
+ * edgePad：视口边缘允许「无内容」的最大比例（0.2 = 两侧各最多 20% 空）。
+ */
+export function clampViewToContent(
+  view: ViewTransform,
+  bbox: BBox,
+  width: number,
+  height: number,
+  edgePad = 0.18
+): ViewTransform {
+  if (width <= 0 || height <= 0) return view;
+  const [[minLon, minLat], [maxLon, maxLat]] = bbox;
+  if (!Number.isFinite(minLon)) return view;
+
+  const [mx0, myNorth] = lonLatToMercator(minLon, maxLat);
+  const [mx1, mySouth] = lonLatToMercator(maxLon, minLat);
+  const { scale } = view;
+  let { tx, ty } = view;
+
+  const xMin = width * edgePad;
+  const xMax = width * (1 - edgePad);
+  const yMin = height * edgePad;
+  const yMax = height * (1 - edgePad);
+  const safeW = width * (1 - 2 * edgePad);
+  const safeH = height * (1 - 2 * edgePad);
+
+  const cLeft = mx0 * scale + tx;
+  const cRight = mx1 * scale + tx;
+  const cW = cRight - cLeft;
+
+  if (cW <= safeW) {
+    tx += width / 2 - (cLeft + cRight) / 2;
+  } else {
+    if (cRight < xMin) tx += xMin - cRight;
+    if (mx0 * scale + tx > xMax) tx = xMax - mx0 * scale;
+  }
+
+  const cTop = myNorth * scale + ty;
+  const cBottom = mySouth * scale + ty;
+  const cH = cBottom - cTop;
+
+  if (cH <= safeH) {
+    ty += height / 2 - (cTop + cBottom) / 2;
+  } else {
+    if (cBottom < yMin) ty += yMin - cBottom;
+    if (myNorth * scale + ty > yMax) ty = yMax - myNorth * scale;
+  }
+
+  return { scale, tx, ty };
+}
+
 /** 将环坐标写入 Path2D（墨卡托 → 屏幕） */
 export function ringToPath(
   path: Path2D,
