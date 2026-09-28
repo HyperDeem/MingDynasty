@@ -19,7 +19,7 @@ export function InheritanceBar({ emperorId, onNavigate }: InheritanceBarProps) {
   const { prev, next } = getInheritanceComparison(emperorId);
 
   return (
-    <div className="border-b border-ink-800/10 bg-ink-100/50 px-4 py-3 md:px-6">
+    <div className="border-t border-ink-800/10 bg-ink-100/50 px-4 py-3 md:px-6">
       <p className="mb-2 font-display text-[10px] tracking-[0.25em] text-ink-400">
         继承逻辑对比
       </p>

@@ -55,11 +55,25 @@ export function GenealogyGraph({
   className = "",
 }: GenealogyGraphProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(mode === "ego" ? 1 : 0.55);
+  /** 用户相对适配比例的缩放（1 = 刚好铺满视口） */
+  const [userScale, setUserScale] = useState(1);
+  const [viewportSize, setViewportSize] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
-    setScale(mode === "ego" ? 1 : 0.55);
+    setUserScale(1);
   }, [mode, focusId]);
+
+  useEffect(() => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    const measure = () => {
+      setViewportSize({ w: vp.clientWidth, h: vp.clientHeight });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(vp);
+    return () => ro.disconnect();
+  }, []);
 
   const ego = useMemo(
     () => (mode === "ego" ? getEgoNeighborhood(focusId) : null),
@@ -91,6 +105,21 @@ export function GenealogyGraph({
   const edges: BloodEdge[] =
     mode === "ego" && ego ? ego.edges : [...BLOOD_EDGES, ...USURP_EDGES];
 
+  /** ego：按视口适配铺满；full：沿用绝对缩放 */
+  const fitScale = useMemo(() => {
+    if (mode !== "ego" || viewportSize.w < 8 || viewportSize.h < 8) {
+      return mode === "ego" ? 1 : 0.55;
+    }
+    const pad = 0.92;
+    return Math.min(
+      viewportSize.w / canvas.width,
+      viewportSize.h / canvas.height
+    ) * pad;
+  }, [mode, viewportSize, canvas.width, canvas.height]);
+
+  const scale =
+    mode === "ego" ? fitScale * userScale : 0.55 * userScale;
+
   const lod = lodFromScale(scale, mode);
   const personById = useMemo(() => {
     const m = new Map<LineageNodeId, (typeof persons)[0]>();
@@ -98,32 +127,46 @@ export function GenealogyGraph({
     return m;
   }, [persons]);
 
+  const stageW = Math.max(canvas.width * scale, viewportSize.w || 0);
+  const stageH = Math.max(canvas.height * scale, viewportSize.h || 0);
+  const offsetX = Math.max(0, (stageW - canvas.width * scale) / 2);
+  const offsetY = Math.max(0, (stageH - canvas.height * scale) / 2);
+
   const scrollToFocus = useCallback(() => {
     const person = personById.get(focusId);
     const vp = viewportRef.current;
     if (!person || !vp) return;
     const targetX =
-      person.drawX * scale - vp.clientWidth / 2 + (NODE_W * scale) / 2;
+      offsetX +
+      person.drawX * scale -
+      vp.clientWidth / 2 +
+      (NODE_W * scale) / 2;
     const targetY =
-      person.drawY * scale - vp.clientHeight / 2 + (NODE_H * scale) / 2;
+      offsetY +
+      person.drawY * scale -
+      vp.clientHeight / 2 +
+      (NODE_H * scale) / 2;
     vp.scrollTo({
       left: Math.max(0, targetX),
       top: Math.max(0, targetY),
       behavior: "smooth",
     });
-  }, [focusId, scale, personById]);
+  }, [focusId, scale, personById, offsetX, offsetY]);
 
   useEffect(() => {
     const t = window.setTimeout(scrollToFocus, 80);
     return () => window.clearTimeout(t);
   }, [scrollToFocus]);
 
-  const minScale = mode === "ego" ? 0.7 : 0.4;
-  const maxScale = mode === "ego" ? 1.25 : 1.35;
+  const minUser = mode === "ego" ? 0.75 : 0.7;
+  const maxUser = mode === "ego" ? 1.45 : 2.4;
+  const displayPct = Math.round(
+    mode === "ego" ? userScale * 100 : scale * 100
+  );
 
   return (
     <div className={`flex h-full min-h-0 flex-col ${className}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-800/10 px-3 py-2 md:px-4">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-ink-800/10 px-3 py-2 md:px-4">
         <div>
           <p className="font-display text-[10px] tracking-[0.25em] text-ink-400">
             {mode === "ego" ? "近邻血缘" : "全景谱系"}
@@ -158,18 +201,22 @@ export function GenealogyGraph({
             <button
               type="button"
               className="px-2 py-1 text-xs text-ink-600 hover:text-ink-900"
-              onClick={() => setScale((s) => Math.max(minScale, s - 0.1))}
+              onClick={() =>
+                setUserScale((s) => Math.max(minUser, s - 0.1))
+              }
               aria-label="缩小"
             >
               −
             </button>
             <span className="min-w-[3rem] text-center text-[10px] tabular-nums text-ink-500">
-              {Math.round(scale * 100)}%
+              {displayPct}%
             </span>
             <button
               type="button"
               className="px-2 py-1 text-xs text-ink-600 hover:text-ink-900"
-              onClick={() => setScale((s) => Math.min(maxScale, s + 0.1))}
+              onClick={() =>
+                setUserScale((s) => Math.min(maxUser, s + 0.1))
+              }
               aria-label="放大"
             >
               +
@@ -184,19 +231,28 @@ export function GenealogyGraph({
         onWheel={(e) => {
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
-            setScale((s) =>
-              Math.min(maxScale, Math.max(minScale, s - e.deltaY * 0.0015))
+            setUserScale((s) =>
+              Math.min(maxUser, Math.max(minUser, s - e.deltaY * 0.0015))
             );
           }
         }}
       >
         <div
-          className="relative origin-top-left transition-[width,height] duration-200"
+          className="relative transition-[width,height] duration-200"
           style={{
-            width: canvas.width * scale,
-            height: canvas.height * scale,
+            width: stageW || canvas.width * scale,
+            height: stageH || canvas.height * scale,
           }}
         >
+          <div
+            className="absolute"
+            style={{
+              left: offsetX,
+              top: offsetY,
+              width: canvas.width * scale,
+              height: canvas.height * scale,
+            }}
+          >
           <svg
             width={canvas.width * scale}
             height={canvas.height * scale}
@@ -312,6 +368,7 @@ export function GenealogyGraph({
               onSelect={onSelect}
             />
           ))}
+          </div>
         </div>
       </div>
     </div>

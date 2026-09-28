@@ -436,18 +436,20 @@ export function Timeline({
   return (
     <motion.div
       ref={rootRef}
-      role="button"
+      role="region"
       tabIndex={0}
       aria-expanded={expanded}
-      aria-label={expanded ? "时间轴已展开" : "时间轴，点击展开"}
-      className="relative cursor-pointer overflow-hidden border-t border-ink-800/10 bg-[rgba(251,249,243,0.94)] backdrop-blur-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cinnabar/35"
+      aria-label={expanded ? "时间轴已展开" : "时间轴区域，点击展开"}
+      className={`relative cursor-pointer border-t border-ink-800/10 bg-[rgba(251,249,243,0.94)] backdrop-blur-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cinnabar/35 ${
+        expanded ? "overflow-hidden" : "overflow-visible"
+      }`}
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
       onClick={(e) => {
         if (expanded) return;
-        // 色带/按钮自身点击另有逻辑；空白处点击展开
+        // 色带/筛选等控件自有逻辑；区域空白处点击即可展开
         const t = e.target as HTMLElement;
-        if (t.closest("button, a, input, [role='button']")) return;
+        if (t.closest("button, a, input, select, textarea")) return;
         expandTimeline();
       }}
       onKeyDown={(e) => {
@@ -464,10 +466,17 @@ export function Timeline({
       }}
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div
-        className="pointer-events-none absolute inset-x-0 -top-40 h-40"
-        aria-hidden
-      />
+      {/* 收起时向上扩大可点/可悬停区域，不必精确点在色带上 */}
+      {!expanded && (
+        <div
+          className="absolute inset-x-0 -top-16 h-16 cursor-pointer md:-top-20 md:h-20"
+          aria-hidden
+          onClick={(e) => {
+            e.stopPropagation();
+            expandTimeline();
+          }}
+        />
+      )}
       <motion.div
         className="px-4 md:px-6"
         animate={{

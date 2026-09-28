@@ -155,7 +155,7 @@ export default function HomePage() {
         />
       </div>
 
-      <footer className="relative z-40 shrink-0">
+      <footer className="relative z-40 shrink-0 overflow-visible">
         <Timeline
           activeEventId={highlightEventId}
           activeEmperorId={emperorId}

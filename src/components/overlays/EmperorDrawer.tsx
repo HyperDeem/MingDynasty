@@ -19,12 +19,11 @@ import { SuccessionChain } from "@/components/genealogy/SuccessionChain";
 import { EmperorArchiveCard } from "@/components/genealogy/EmperorArchiveCard";
 import { EmperorPortrait } from "@/components/EmperorPortrait";
 
-type EmpTab = "bio" | "lineage" | "succession" | "archive";
+type EmpTab = "bio" | "lineage" | "archive";
 
 const TABS: { id: EmpTab; label: string }[] = [
   { id: "bio", label: "简介" },
   { id: "lineage", label: "血缘" },
-  { id: "succession", label: "继承" },
   { id: "archive", label: "档案" },
 ];
 
@@ -113,6 +112,7 @@ export function EmperorDrawer({
                       <EmperorPortrait
                         emperorId={activeEmperor}
                         name={emperor.name}
+                        enlargeOnClick
                         className="!h-28 !w-[5.25rem] md:!h-32 md:!w-24 lg:!h-36 lg:!w-[6.5rem]"
                       />
                       <div className="flex min-w-0 flex-1 flex-col justify-center">
@@ -145,7 +145,6 @@ export function EmperorDrawer({
                       </div>
                     </div>
 
-                    {/* 简介撑满剩余高度：大屏加行距/字距 */}
                     <p className="mt-4 min-h-0 flex-1 overflow-y-auto text-[13px] leading-[1.9] tracking-wide text-ink-600 scrollbar-timeline md:mt-5 md:text-sm md:leading-[2.05] md:tracking-[0.04em] lg:mt-6 lg:text-[15px] lg:leading-[2.2] lg:tracking-[0.055em]">
                       {emperor.summary}
                     </p>
@@ -164,26 +163,17 @@ export function EmperorDrawer({
                   </div>
                 )}
 
-                {tab === "succession" && (
+                {tab === "archive" && (
                   <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-timeline">
+                    {/* 身份档案 → 承袭链导航 → 前后任继承对比 */}
+                    <EmperorArchiveCard emperorId={activeEmperor} />
+                    <SuccessionChain
+                      activeId={activeEmperor}
+                      onSelect={(id) => handleSelectNode(id)}
+                    />
                     <InheritanceBar
                       emperorId={activeEmperor}
                       onNavigate={handleSelectNode}
-                    />
-                    <div className="min-h-0 flex-1">
-                      <SuccessionChain
-                        activeId={activeEmperor}
-                        onSelect={(id) => handleSelectNode(id)}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {tab === "archive" && (
-                  <div className="flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-timeline">
-                    <EmperorArchiveCard
-                      emperorId={activeEmperor}
-                      fill
                     />
                   </div>
                 )}
