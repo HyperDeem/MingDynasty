@@ -6,13 +6,14 @@ import {
 } from "@/data/lineage-helpers";
 import type { EmperorId } from "@/data/emperors";
 import { EventTag } from "@/components/EventTag";
+import { EmperorPortrait } from "@/components/EmperorPortrait";
 import { motion } from "framer-motion";
 
 interface EmperorArchiveCardProps {
   emperorId: EmperorId;
 }
 
-/** 档案身份卡：姓名 / 年号 / 庙谥（不含简介与生卒，避免与简介页重复） */
+/** 档案身份卡：画像 + 姓名 / 年号 / 庙谥 */
 export function EmperorArchiveCard({ emperorId }: EmperorArchiveCardProps) {
   const person = getEmperorPerson(emperorId);
   const events = getEventsByEmperorSafe(emperorId);
@@ -23,34 +24,42 @@ export function EmperorArchiveCard({ emperorId }: EmperorArchiveCardProps) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className="bg-ink-50/80 px-3 py-3 md:px-4 md:py-4"
+      className="bg-[rgba(251,249,243,0.42)] px-3 py-3 md:px-4 md:py-4"
     >
-      <div className="grid gap-2 sm:grid-cols-3 md:gap-2.5">
-        <NameBlock label="姓名" value={person.name} emphasize />
-        <NameBlock
-          label="年号"
-          value={
-            person.reigns.length > 1
-              ? person.reigns.map((r) => r.title).join(" / ")
-              : person.reigns[0]?.title ?? "—"
-          }
-          sub={
-            person.reigns.length > 1
-              ? person.reigns
-                  .map((r) => `${r.title} ${r.startYear}–${r.endYear}`)
-                  .join(" · ")
-              : person.reigns[0]
-                ? `${person.reigns[0].startYear}–${person.reigns[0].endYear}`
-                : undefined
-          }
-          emphasize
+      <div className="flex gap-3 md:gap-4">
+        <EmperorPortrait
+          emperorId={emperorId}
+          name={person.name}
+          enlargeOnClick
+          className="!h-24 !w-[4.5rem] md:!h-28 md:!w-[5.25rem]"
         />
-        <NameBlock
-          label="庙号 / 谥号"
-          value={person.templeName ?? "—"}
-          sub={person.posthumousName}
-          emphasize
-        />
+        <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-1 md:gap-2.5">
+          <NameBlock label="姓名" value={person.name} emphasize />
+          <NameBlock
+            label="年号"
+            value={
+              person.reigns.length > 1
+                ? person.reigns.map((r) => r.title).join(" / ")
+                : person.reigns[0]?.title ?? "—"
+            }
+            sub={
+              person.reigns.length > 1
+                ? person.reigns
+                    .map((r) => `${r.title} ${r.startYear}–${r.endYear}`)
+                    .join(" · ")
+                : person.reigns[0]
+                  ? `${person.reigns[0].startYear}–${person.reigns[0].endYear}`
+                  : undefined
+            }
+            emphasize
+          />
+          <NameBlock
+            label="庙号 / 谥号"
+            value={person.templeName ?? "—"}
+            sub={person.posthumousName}
+            emphasize
+          />
+        </div>
       </div>
 
       {emperorId === "yingzong" && (
@@ -112,7 +121,7 @@ function NameBlock({
     <div
       className={`border px-2.5 py-2 ${
         emphasize
-          ? "border-ink-800/15 bg-gradient-to-b from-ink-50 to-ink-100/60"
+          ? "border-ink-800/12 bg-[rgba(251,249,243,0.55)]"
           : "border-ink-800/10"
       }`}
     >

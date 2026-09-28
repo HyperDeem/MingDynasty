@@ -112,7 +112,7 @@ export function EmperorDrawer({
       >
         {activeEmperor && emperor && archivePerson && (
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex shrink-0 gap-1 border-b border-ink-800/10 px-2 py-1.5 md:px-3 md:py-2">
+            <div className="flex shrink-0 gap-1 border-b border-ink-800/10 bg-[rgba(251,249,243,0.25)] px-2 py-1.5 md:px-3 md:py-2">
               {TABS.map((t) => (
                 <button
                   key={t.id}
@@ -120,8 +120,8 @@ export function EmperorDrawer({
                   onClick={() => setTab(t.id)}
                   className={`flex-1 rounded-sm px-1.5 py-1.5 font-display text-[11px] transition md:px-2.5 md:text-xs ${
                     tab === t.id
-                      ? "bg-ink-800/90 text-ink-50"
-                      : "text-ink-500 hover:bg-ink-800/[0.06] hover:text-ink-800"
+                      ? "bg-ink-800/85 text-ink-50"
+                      : "bg-[rgba(251,249,243,0.35)] text-ink-500 hover:bg-ink-800/[0.08] hover:text-ink-800"
                   }`}
                 >
                   {t.label}
@@ -261,14 +261,16 @@ export function EmperorDrawer({
                     <ArchiveThumb
                       eyebrow="身份档"
                       title={archivePerson.name}
-                      subtitle={[
-                        archivePerson.templeName,
-                        archivePerson.reigns[0]?.title,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
                       open={archiveOpen === "card"}
                       onToggle={() => toggleArchive("card")}
+                      thumb={
+                        <EmperorPortrait
+                          emperorId={activeEmperor}
+                          name={archivePerson.name}
+                          size="sm"
+                          className="!h-10 !w-8"
+                        />
+                      }
                     >
                       <EmperorArchiveCard emperorId={activeEmperor} />
                     </ArchiveThumb>
@@ -276,7 +278,6 @@ export function EmperorDrawer({
                     <ArchiveThumb
                       eyebrow="承袭链"
                       title="明朝十六帝"
-                      subtitle="英宗一人一席 · 点击展开"
                       open={archiveOpen === "chain"}
                       onToggle={() => toggleArchive("chain")}
                     >
@@ -289,11 +290,6 @@ export function EmperorDrawer({
                     <ArchiveThumb
                       eyebrow="继承"
                       title="前后任对比"
-                      subtitle={[
-                        prevEmperor?.reigns[0]?.title ?? "开国",
-                        archivePerson.reigns[0]?.title,
-                        nextEmperor?.reigns[0]?.title ?? "终祚",
-                      ].join(" → ")}
                       open={archiveOpen === "inherit"}
                       onToggle={() => toggleArchive("inherit")}
                     >
@@ -325,40 +321,39 @@ export function EmperorDrawer({
 function ArchiveThumb({
   eyebrow,
   title,
-  subtitle,
   open,
   onToggle,
+  thumb,
   children,
 }: {
   eyebrow: string;
   title: string;
-  subtitle: string;
   open: boolean;
   onToggle: () => void;
+  thumb?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-sm border border-ink-800/12 bg-ink-50/70">
+    <div className="overflow-hidden rounded-sm border border-ink-800/12 bg-[rgba(251,249,243,0.4)]">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
         className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-ink-800/[0.04] md:px-3.5"
       >
-        <span className="flex h-10 w-10 shrink-0 flex-col items-center justify-center border border-ink-800/10 bg-ink-100/80">
-          <span className="font-display text-[9px] tracking-wider text-cinnabar">
-            {eyebrow.slice(0, 2)}
+        {thumb ?? (
+          <span className="flex h-10 w-10 shrink-0 flex-col items-center justify-center border border-ink-800/10 bg-[rgba(251,249,243,0.55)]">
+            <span className="font-display text-[9px] tracking-wider text-cinnabar">
+              {eyebrow.slice(0, 2)}
+            </span>
           </span>
-        </span>
+        )}
         <span className="min-w-0 flex-1">
           <span className="block font-display text-[10px] tracking-[0.22em] text-ink-400">
             {eyebrow}
           </span>
           <span className="mt-0.5 block truncate font-display text-sm font-semibold text-ink-900">
             {title}
-          </span>
-          <span className="mt-0.5 block truncate text-[11px] text-ink-500">
-            {subtitle}
           </span>
         </span>
         <span

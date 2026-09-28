@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -194,70 +194,76 @@ export function GenealogyGraph({
     mode === "ego" ? userScale * 100 : scale * 100
   );
 
+  const dragRef = useRef<{
+    active: boolean;
+    x: number;
+    y: number;
+    sl: number;
+    st: number;
+  } | null>(null);
+
+  const endDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current?.active) return;
+    dragRef.current = null;
+    const vp = viewportRef.current;
+    if (vp) {
+      try {
+        vp.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      vp.style.cursor = "grab";
+    }
+  };
+
   return (
     <div className={`flex h-full min-h-0 flex-col ${className}`}>
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-ink-800/10 bg-[rgba(251,249,243,0.45)] px-3 py-2 md:px-4">
-        <div>
-          <p className="font-display text-[10px] tracking-[0.25em] text-ink-400">
-            {mode === "ego" ? "近邻血缘" : "全景谱系"}
-          </p>
-          <p className="text-[11px] text-ink-500">
-            {mode === "ego"
-              ? "父母 · 同辈 · 子女 · 点击切换"
-              : "拖拽滚动 · Ctrl+滚轮缩放"}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {mode === "full" && <Legend />}
-          {mode === "ego" && onRequestFullscreen && (
-            <button
-              type="button"
-              onClick={onRequestFullscreen}
-              className="border border-ink-800/15 px-2 py-1 text-[11px] text-ink-600 transition hover:border-cinnabar/40 hover:text-cinnabar"
-            >
-              展开全景
-            </button>
-          )}
-          {mode === "full" && onExitFullscreen && (
-            <button
-              type="button"
-              onClick={onExitFullscreen}
-              className="border border-ink-800/15 px-2 py-1 text-[11px] text-ink-600 transition hover:border-cinnabar/40 hover:text-cinnabar"
-            >
-              收起全景
-            </button>
-          )}
-          <div className="flex items-center gap-1 rounded bg-ink-800/[0.06] p-0.5">
-            <button
-              type="button"
-              className="px-2 py-1 text-xs text-ink-600 hover:text-ink-900"
-              onClick={() =>
-                setUserScale((s) => Math.max(minUser, s - 0.1))
-              }
-              aria-label="缩小"
-            >
-              −
-            </button>
-            <span className="min-w-[3rem] text-center text-[10px] tabular-nums text-ink-500">
-              {displayPct}%
-            </span>
-            <button
-              type="button"
-              className="px-2 py-1 text-xs text-ink-600 hover:text-ink-900"
-              onClick={() =>
-                setUserScale((s) => Math.min(maxUser, s + 0.1))
-              }
-              aria-label="放大"
-            >
-              +
-            </button>
-          </div>
+      <div className="flex shrink-0 items-center justify-end gap-2 border-b border-ink-800/10 bg-[rgba(251,249,243,0.22)] px-3 py-1.5 md:px-4">
+        {mode === "full" && <Legend />}
+        {mode === "ego" && onRequestFullscreen && (
+          <button
+            type="button"
+            onClick={onRequestFullscreen}
+            className="border border-ink-800/15 bg-[rgba(251,249,243,0.55)] px-2.5 py-1 text-[11px] text-ink-600 transition hover:border-cinnabar/40 hover:text-cinnabar"
+          >
+            展开全景
+          </button>
+        )}
+        {mode === "full" && onExitFullscreen && (
+          <button
+            type="button"
+            onClick={onExitFullscreen}
+            className="border border-ink-800/15 bg-[rgba(251,249,243,0.55)] px-2.5 py-1 text-[11px] text-ink-600 transition hover:border-cinnabar/40 hover:text-cinnabar"
+          >
+            收起全景
+          </button>
+        )}
+        <div className="flex items-center gap-0.5 rounded border border-ink-800/10 bg-[rgba(251,249,243,0.5)] p-0.5">
+          <button
+            type="button"
+            className="px-2 py-1 text-xs text-ink-600 hover:text-ink-900"
+            onClick={() => setUserScale((s) => Math.max(minUser, s - 0.1))}
+            aria-label="缩小"
+          >
+            −
+          </button>
+          <span className="min-w-[2.75rem] text-center text-[10px] tabular-nums text-ink-500">
+            {displayPct}%
+          </span>
+          <button
+            type="button"
+            className="px-2 py-1 text-xs text-ink-600 hover:text-ink-900"
+            onClick={() => setUserScale((s) => Math.min(maxUser, s + 0.1))}
+            aria-label="放大"
+          >
+            +
+          </button>
         </div>
       </div>
 
       <div
         ref={viewportRef}
-        className="scrollbar-timeline relative min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[rgba(243,239,228,0.35)] to-transparent [scrollbar-gutter:stable]"
+        className="scrollbar-timeline relative min-h-0 flex-1 cursor-grab overflow-auto bg-transparent [scrollbar-gutter:stable] active:cursor-grabbing"
         onWheel={(e) => {
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
@@ -266,6 +272,30 @@ export function GenealogyGraph({
             );
           }
         }}
+        onPointerDown={(e) => {
+          if (e.button !== 0) return;
+          const t = e.target as HTMLElement;
+          if (t.closest("button, a, input, select, textarea")) return;
+          const vp = viewportRef.current;
+          if (!vp) return;
+          dragRef.current = {
+            active: true,
+            x: e.clientX,
+            y: e.clientY,
+            sl: vp.scrollLeft,
+            st: vp.scrollTop,
+          };
+          vp.setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          const drag = dragRef.current;
+          const vp = viewportRef.current;
+          if (!drag?.active || !vp) return;
+          vp.scrollLeft = drag.sl - (e.clientX - drag.x);
+          vp.scrollTop = drag.st - (e.clientY - drag.y);
+        }}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
       >
         <div
           className="relative"
