@@ -10,6 +10,11 @@ interface OverlayPanelProps {
   onClose: () => void;
   /** 靠左或靠右 */
   side?: "left" | "right";
+  /**
+   * default：窄栏（世界事件）
+   * wide：加宽半透明（帝王谱系等，可透见疆域）
+   */
+  size?: "default" | "wide";
   children: React.ReactNode;
   className?: string;
 }
@@ -23,6 +28,7 @@ export function OverlayPanel({
   eyebrow,
   onClose,
   side = "right",
+  size = "default",
   children,
   className = "",
 }: OverlayPanelProps) {
@@ -35,25 +41,35 @@ export function OverlayPanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const fromX = side === "right" ? 28 : -28;
+  const fromX = side === "right" ? 36 : -36;
+  const wide = size === "wide";
+
+  const sizeClass = wide
+    ? // 约半屏～六成，左右仍露地图；半透明纸色 + 强模糊
+      "w-[min(100%-1.25rem,34rem)] md:w-[min(54vw,40rem)] lg:w-[min(58vw,46rem)] bg-[rgba(251,249,243,0.84)] shadow-[0_16px_48px_-18px_rgba(48,42,28,0.38)] backdrop-blur-xl"
+    : "w-[min(100%-1.5rem,26rem)] md:w-[min(44vw,30rem)] lg:w-[min(40vw,32rem)] bg-[rgba(251,249,243,0.94)] shadow-[0_12px_40px_-16px_rgba(48,42,28,0.35)] backdrop-blur-md";
 
   return (
     <AnimatePresence>
       {open && (
         <motion.aside
-          key={`overlay-${side}-${title}`}
+          key={`overlay-${side}-${size}-${title}`}
           role="dialog"
           aria-modal="false"
           aria-label={title}
           initial={{ opacity: 0, x: fromX }}
           animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: fromX * 0.6 }}
-          transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-          className={`absolute bottom-3 top-3 z-30 flex w-[min(100%-1.5rem,26rem)] flex-col overflow-hidden rounded-md border border-ink-800/12 bg-[rgba(251,249,243,0.96)] shadow-[0_12px_40px_-16px_rgba(48,42,28,0.35)] backdrop-blur-md md:w-[min(44vw,30rem)] lg:w-[min(40vw,32rem)] ${
+          exit={{ opacity: 0, x: fromX * 0.55 }}
+          transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+          className={`pointer-events-auto absolute bottom-3 top-3 z-30 flex flex-col overflow-hidden rounded-md border border-ink-800/12 ${sizeClass} ${
             side === "right" ? "right-3" : "left-3"
           } ${className}`}
         >
-          <header className="flex shrink-0 items-start justify-between gap-3 border-b border-ink-800/10 px-3 py-2.5 md:px-4 md:py-3">
+          <header
+            className={`flex shrink-0 items-start justify-between gap-3 border-b border-ink-800/10 bg-[rgba(251,249,243,0.55)] px-3 py-2.5 backdrop-blur-sm md:px-4 md:py-3 ${
+              wide ? "md:px-5" : ""
+            }`}
+          >
             <div className="min-w-0">
               {eyebrow && (
                 <p className="font-display text-[10px] tracking-[0.28em] text-cinnabar md:tracking-[0.32em]">
@@ -67,12 +83,12 @@ export function OverlayPanel({
             <button
               type="button"
               onClick={onClose}
-              className="shrink-0 border border-ink-800/15 px-2.5 py-1 text-[11px] text-ink-600 transition hover:border-cinnabar/40 hover:text-cinnabar"
+              className="shrink-0 border border-ink-800/15 bg-[rgba(251,249,243,0.7)] px-2.5 py-1 text-[11px] text-ink-600 transition hover:border-cinnabar/40 hover:text-cinnabar"
             >
               关闭
             </button>
           </header>
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[rgba(251,249,243,0.35)]">
             {children}
           </div>
         </motion.aside>

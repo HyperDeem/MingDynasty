@@ -196,7 +196,7 @@ export function GenealogyGraph({
 
   return (
     <div className={`flex h-full min-h-0 flex-col ${className}`}>
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-ink-800/10 px-3 py-2 md:px-4">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-ink-800/10 bg-[rgba(251,249,243,0.45)] px-3 py-2 md:px-4">
         <div>
           <p className="font-display text-[10px] tracking-[0.25em] text-ink-400">
             {mode === "ego" ? "近邻血缘" : "全景谱系"}
@@ -257,7 +257,7 @@ export function GenealogyGraph({
 
       <div
         ref={viewportRef}
-        className="scrollbar-timeline relative min-h-0 flex-1 overflow-auto bg-gradient-to-b from-ink-100/40 to-transparent [scrollbar-gutter:stable]"
+        className="scrollbar-timeline relative min-h-0 flex-1 overflow-auto bg-gradient-to-b from-[rgba(243,239,228,0.35)] to-transparent [scrollbar-gutter:stable]"
         onWheel={(e) => {
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();

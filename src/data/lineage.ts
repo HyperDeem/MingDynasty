@@ -920,11 +920,13 @@ export function getEgoNeighborhood(focusId: LineageNodeId): EgoNeighborhood {
   );
 
   // —— 按辈分行自动排布 ——
+  // 预留节点左侧御像宽度，避免多分支时卡片与画像重叠
   const NODE_W = 118;
-  const NODE_H = 86;
-  const GAP_X = 28;
-  const ROW_GAP = 110;
-  const PAD = 28;
+  const PORTRAIT_GUTTER = 54;
+  const GAP_X = 56;
+  const ROW_GAP = 132;
+  const PAD = 48;
+  const SLOT_W = NODE_W + PORTRAIT_GUTTER;
 
   type RowKey = "ancestors" | "focus" | "descendants";
   const rows: Record<RowKey, LineageNodeId[]> = {
@@ -990,17 +992,25 @@ export function getEgoNeighborhood(focusId: LineageNodeId): EgoNeighborhood {
   ).filter(([, list]) => list.length > 0);
 
   const maxCount = Math.max(...activeRows.map(([, list]) => list.length), 1);
-  const contentW = maxCount * NODE_W + (maxCount - 1) * GAP_X;
-  const width = Math.max(320, contentW + PAD * 2);
-  const height = activeRows.length * NODE_H + (activeRows.length - 1) * (ROW_GAP - NODE_H) + PAD * 2;
+  const contentW = maxCount * SLOT_W + (maxCount - 1) * GAP_X;
+  const width = Math.max(420, contentW + PAD * 2);
+  const NODE_H = 86;
+  const height =
+    activeRows.length * NODE_H +
+    (activeRows.length - 1) * (ROW_GAP - NODE_H) +
+    PAD * 2;
 
   const positions = new Map<LineageNodeId, { x: number; y: number }>();
   activeRows.forEach(([, list], rowIndex) => {
-    const rowW = list.length * NODE_W + (list.length - 1) * GAP_X;
-    const startX = (width - rowW) / 2;
+    const rowW = list.length * SLOT_W + (list.length - 1) * GAP_X;
+    const startX = (width - rowW) / 2 + PORTRAIT_GUTTER;
     const y = PAD + rowIndex * ROW_GAP;
     list.forEach((id, i) => {
-      positions.set(id, { x: startX + i * (NODE_W + GAP_X), y });
+      // 卡片左缘；画像画在其左侧 gutter 内
+      positions.set(id, {
+        x: startX + i * (SLOT_W + GAP_X),
+        y,
+      });
     });
   });
 
@@ -1009,8 +1019,11 @@ export function getEgoNeighborhood(focusId: LineageNodeId): EgoNeighborhood {
   for (const id of ids) {
     if (!positions.has(id)) {
       positions.set(id, {
-        x: PAD + (fallbackI % 3) * (NODE_W + GAP_X),
-        y: PAD + activeRows.length * ROW_GAP + Math.floor(fallbackI / 3) * ROW_GAP,
+        x: PAD + PORTRAIT_GUTTER + (fallbackI % 3) * (SLOT_W + GAP_X),
+        y:
+          PAD +
+          activeRows.length * ROW_GAP +
+          Math.floor(fallbackI / 3) * ROW_GAP,
       });
       fallbackI += 1;
     }

@@ -108,6 +108,7 @@ export function EmperorDrawer({
         title={emperor?.templeName ?? emperor?.name ?? "帝王"}
         onClose={onClose}
         side="right"
+        size="wide"
       >
         {activeEmperor && emperor && archivePerson && (
           <div className="flex min-h-0 flex-1 flex-col">
