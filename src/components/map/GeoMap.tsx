@@ -13,6 +13,7 @@ import {
   MAP_THEME,
   LABEL_PROVINCES,
   shortProvinceLabel,
+  isGlowRegion,
   type CapitalMarker,
 } from "@/data/ming-map-layers";
 import {
@@ -45,6 +46,8 @@ export interface GeoMapProps {
   previousExtras?: FeatureCollection | null;
   capitals?: CapitalMarker[];
   crossfade?: number;
+  /** 由图例等外部驱动的区域高亮（jiaozhi / nurgan / northwest / maritime…） */
+  highlightRegion?: string | null;
   className?: string;
   onFeatureHover?: (
     name: string | null,
@@ -72,6 +75,7 @@ interface ProvinceFeat {
 
 interface ExtraFeat {
   name: string;
+  region: string | null;
   fill: string;
   opacity: number;
   rings: MercatorRing[];
@@ -176,10 +180,12 @@ function extrasFromFc(fc: FeatureCollection | null): ExtraFeat[] {
         fill?: string;
         opacityHint?: number;
         name?: string;
+        region?: string;
       };
       const geom = simplifyGeometry(f.geometry, 1);
       out.push({
         name: String(props.name ?? "外延区"),
+        region: props.region ? String(props.region) : null,
         fill: props.fill ?? MAP_THEME.core,
         opacity: props.opacityHint ?? 0.28,
         rings: geometryToMercatorRings(geom),
@@ -203,6 +209,7 @@ export function GeoMap({
   previousExtras = null,
   capitals = [],
   crossfade = 1,
+  highlightRegion = null,
   className,
   onFeatureHover,
   onReady,
@@ -217,12 +224,20 @@ export function GeoMap({
   const zoomFactorRef = useRef(1);
   const sizeRef = useRef({ w: 0, h: 0, dpr: 1 });
   const hoverRef = useRef<string | null>(null);
+  const hoverRegionRef = useRef<string | null>(null);
+  /** 0–1 外延区发光抬升进度 */
+  const glowPulseRef = useRef(0);
+  const glowRafRef = useRef<number | null>(null);
+  const glowTargetRef = useRef(0);
+  /** 淡出期间仍绘制上次发光区域 */
+  const glowRegionRef = useRef<string | null>(null);
   const dragRef = useRef({ active: false, x: 0, y: 0 });
   const propsRef = useRef({
     coreProvinces,
     previousCoreProvinces,
     capitals,
     crossfade,
+    highlightRegion,
   });
   const hoverCbRef = useRef(onFeatureHover);
   const readyCbRef = useRef(onReady);
@@ -243,6 +258,7 @@ export function GeoMap({
     previousCoreProvinces,
     capitals,
     crossfade,
+    highlightRegion,
   };
   hoverCbRef.current = onFeatureHover;
   readyCbRef.current = onReady;
@@ -293,6 +309,8 @@ export function GeoMap({
     const coreSet = new Set(core);
     const prevSet = new Set(prevCore ?? []);
     const hover = hoverRef.current;
+    const glow = glowPulseRef.current;
+    const glowRegion = glowRegionRef.current;
     const paths = getPaths(view);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -302,12 +320,7 @@ export function GeoMap({
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
 
-    // 海洋 / 水体底色（与无归属陆地米暖色区分）
-    ctx.fillStyle = MAP_THEME.ocean;
-    ctx.fillRect(0, 0, w, h);
-
-    // 省面：无归属陆地
-    const coreUnion = new Path2D();
+    // 省面
     for (let i = 0; i < provinces.length; i++) {
       const p = provinces[i];
       const path = paths.provinces[i];
@@ -318,51 +331,15 @@ export function GeoMap({
       ctx.fill(path);
 
       if (hasPrev && prevSet.has(p.name)) {
-        ctx.fillStyle = hexToRgba(MAP_THEME.core, (1 - t) * 0.28);
+        ctx.fillStyle = hexToRgba(MAP_THEME.core, (1 - t) * 0.32);
         ctx.fill(path);
       }
       if (isCore) {
         ctx.fillStyle = hexToRgba(
           MAP_THEME.core,
-          (hasPrev ? t : 1) * (isHover ? 0.34 : 0.26)
+          (hasPrev ? t : 1) * (isHover ? 0.4 : 0.32)
         );
         ctx.fill(path);
-        coreUnion.addPath(path);
-      }
-    }
-
-    // 核心疆域：都城放射渐变 + 边缘内阴影羽化
-    if (coreSet.size > 0) {
-      const coreAlpha = hasPrev ? t : 1;
-      if (coreAlpha > 0.02) {
-        ctx.save();
-        ctx.clip(coreUnion);
-
-        const glowR = Math.max(w, h) * 0.42;
-        const centers =
-          caps.length > 0
-            ? caps.map((c) => project(c.coordinates[0], c.coordinates[1], view))
-            : ([[w * 0.55, h * 0.38]] as [number, number][]);
-
-        for (const [cx, cy] of centers) {
-          const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowR);
-          grad.addColorStop(0, hexToRgba(MAP_THEME.core, 0.22 * coreAlpha));
-          grad.addColorStop(0.35, hexToRgba(MAP_THEME.core, 0.1 * coreAlpha));
-          grad.addColorStop(0.7, hexToRgba(MAP_THEME.core, 0.03 * coreAlpha));
-          grad.addColorStop(1, "rgba(63,111,100,0)");
-          ctx.fillStyle = grad;
-          ctx.fillRect(0, 0, w, h);
-        }
-
-        // 边缘内阴影：宽描边压在剪裁域内，形成微弱羽化
-        ctx.strokeStyle = `rgba(28, 48, 42, ${0.22 * coreAlpha})`;
-        ctx.lineWidth = 10;
-        ctx.stroke(coreUnion);
-        ctx.strokeStyle = `rgba(28, 48, 42, ${0.12 * coreAlpha})`;
-        ctx.lineWidth = 18;
-        ctx.stroke(coreUnion);
-
-        ctx.restore();
       }
     }
 
@@ -372,13 +349,41 @@ export function GeoMap({
       for (let i = 0; i < list.length; i++) {
         const e = list[i];
         const path = pathList[i];
-        ctx.fillStyle = hexToRgba(e.fill, e.opacity * mul);
-        ctx.fill(path);
-        ctx.strokeStyle = hexToRgba("#2f554d", 0.45 * mul);
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3.2, 3.2]);
-        ctx.stroke(path);
-        ctx.setLineDash([]);
+        const canGlow = e.region != null && isGlowRegion(e.region);
+        const lit =
+          canGlow && glow > 0.01 && glowRegion != null && glowRegion === e.region;
+
+        if (lit) {
+          const lift = glow * 3.6;
+          ctx.save();
+          ctx.translate(0, -lift);
+          ctx.shadowColor = hexToRgba(e.fill, 0.5 + glow * 0.3);
+          ctx.shadowBlur = 8 + glow * 16;
+          ctx.fillStyle = hexToRgba(
+            e.fill,
+            Math.min(0.62, e.opacity * mul * (1.2 + glow * 0.6))
+          );
+          ctx.fill(path);
+          ctx.shadowBlur = 0;
+          ctx.shadowColor = "transparent";
+          ctx.strokeStyle = hexToRgba(e.fill, 0.58 + glow * 0.35);
+          ctx.lineWidth = 1.5 + glow * 0.9;
+          ctx.setLineDash([]);
+          ctx.stroke(path);
+          // 内缘高光，增强“抬升”
+          ctx.strokeStyle = `rgba(255, 252, 245, ${0.2 + glow * 0.28})`;
+          ctx.lineWidth = 1.1;
+          ctx.stroke(path);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = hexToRgba(e.fill, e.opacity * mul);
+          ctx.fill(path);
+          ctx.strokeStyle = hexToRgba("#2f554d", 0.45 * mul);
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3.2, 3.2]);
+          ctx.stroke(path);
+          ctx.setLineDash([]);
+        }
       }
     };
     drawExtras(
@@ -429,54 +434,28 @@ export function GeoMap({
       ctx.fillText(e.name, x, y);
     }
 
-    // 都城：朱砂小印章
     for (const c of caps) {
       const [x, y] = project(c.coordinates[0], c.coordinates[1], view);
-      const seal = 5.2;
-
-      ctx.save();
-      ctx.shadowColor = MAP_THEME.capitalGlow;
-      ctx.shadowBlur = 10;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 1;
-
-      // 外缘宣纸环
       ctx.beginPath();
-      ctx.arc(x, y, seal + 2.4, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(251, 249, 243, 0.96)";
+      ctx.arc(x, y, 6.5, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(251, 249, 243, 0.95)";
       ctx.fill();
-
-      // 朱砂印面（略方的圆角印）
-      const half = seal * 0.92;
       ctx.beginPath();
-      if (typeof ctx.roundRect === "function") {
-        ctx.roundRect(x - half, y - half, half * 2, half * 2, 1.6);
-      } else {
-        ctx.rect(x - half, y - half, half * 2, half * 2);
-      }
+      ctx.arc(x, y, 3.4, 0, Math.PI * 2);
       ctx.fillStyle = MAP_THEME.capital;
       ctx.fill();
-      ctx.shadowColor = "transparent";
-      ctx.lineWidth = 1.1;
-      ctx.strokeStyle = MAP_THEME.capitalRim;
+      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = MAP_THEME.paperRaised;
       ctx.stroke();
-
-      // 印心高光点
-      ctx.beginPath();
-      ctx.arc(x - 1.1, y - 1.2, 1.15, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(255, 236, 230, 0.55)";
-      ctx.fill();
-      ctx.restore();
-
       ctx.font =
-        '700 11px "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif';
+        '600 11px "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif';
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      ctx.lineWidth = 2.8;
-      ctx.strokeStyle = "rgba(248, 249, 245, 0.96)";
-      ctx.strokeText(c.name, x, y + seal + 4);
-      ctx.fillStyle = MAP_THEME.capital;
-      ctx.fillText(c.name, x, y + seal + 4);
+      ctx.lineWidth = 2.6;
+      ctx.strokeStyle = "rgba(248, 249, 245, 0.95)";
+      ctx.strokeText(c.name, x, y + 8);
+      ctx.fillStyle = MAP_THEME.inkSoft;
+      ctx.fillText(c.name, x, y + 8);
     }
   }, [getPaths]);
 
@@ -813,20 +792,22 @@ export function GeoMap({
   ]);
 
   const hitTest = useCallback(
-    (sx: number, sy: number): { name: string; isCore: boolean } | null => {
+    (
+      sx: number,
+      sy: number
+    ): { name: string; isCore: boolean; region: string | null } | null => {
       const canvas = canvasRef.current;
       if (!canvas) return null;
       const ctx = canvas.getContext("2d");
       if (!ctx) return null;
-      // Path 建在 CSS 像素空间；命中检测必须用单位矩阵，
-      // 若带 dpr 变换会把指针坐标放大，造成悬停省份与光标错位
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       const view = viewRef.current;
       const paths = getPaths(view);
 
       for (let i = extrasRef.current.length - 1; i >= 0; i--) {
         if (ctx.isPointInPath(paths.extras[i], sx, sy)) {
-          return { name: extrasRef.current[i].name, isCore: false };
+          const e = extrasRef.current[i];
+          return { name: e.name, isCore: false, region: e.region };
         }
       }
 
@@ -839,11 +820,65 @@ export function GeoMap({
         if (core.has(name)) coreHit = name;
         else landHit = name;
       }
-      if (coreHit) return { name: coreHit, isCore: true };
-      if (landHit) return { name: landHit, isCore: false };
+      if (coreHit) return { name: coreHit, isCore: true, region: "core" };
+      if (landHit) return { name: landHit, isCore: false, region: null };
       return null;
     },
     [getPaths]
+  );
+
+  const driveGlow = useCallback((target: number) => {
+    glowTargetRef.current = target;
+    if (glowRafRef.current != null) return;
+    const step = () => {
+      const cur = glowPulseRef.current;
+      const goal = glowTargetRef.current;
+      const next = cur + (goal - cur) * 0.2;
+      glowPulseRef.current =
+        Math.abs(goal - next) < 0.008 ? goal : next;
+      if (glowPulseRef.current < 0.008 && goal === 0) {
+        glowRegionRef.current = null;
+      }
+      paint();
+      if (Math.abs(glowTargetRef.current - glowPulseRef.current) > 0.008) {
+        glowRafRef.current = requestAnimationFrame(step);
+      } else {
+        glowPulseRef.current = glowTargetRef.current;
+        if (glowTargetRef.current === 0) glowRegionRef.current = null;
+        glowRafRef.current = null;
+        paint();
+      }
+    };
+    glowRafRef.current = requestAnimationFrame(step);
+  }, [paint]);
+
+  const resolveActiveGlowRegion = useCallback((): string | null => {
+    const mapHover = hoverRegionRef.current;
+    if (isGlowRegion(mapHover)) return mapHover;
+    const ext = propsRef.current.highlightRegion;
+    if (isGlowRegion(ext)) return ext;
+    return null;
+  }, []);
+
+  const syncGlow = useCallback(() => {
+    const region = resolveActiveGlowRegion();
+    if (region) glowRegionRef.current = region;
+    driveGlow(region ? 1 : 0);
+  }, [driveGlow, resolveActiveGlowRegion]);
+
+  // 图例外部高亮 → 同步发光抬升
+  useEffect(() => {
+    syncGlow();
+  }, [highlightRegion, syncGlow]);
+
+  useEffect(
+    () => () => {
+      if (glowRafRef.current != null) {
+        cancelAnimationFrame(glowRafRef.current);
+        glowRafRef.current = null;
+      }
+    },
+    []
   );
 
   const onPointerDown = (e: ReactPointerEvent) => {
@@ -871,13 +906,17 @@ export function GeoMap({
 
     const hit = hitTest(sx, sy);
     const name = hit?.name ?? null;
-    if (name !== hoverRef.current) {
+    const region = hit?.region ?? null;
+    if (name !== hoverRef.current || region !== hoverRegionRef.current) {
       hoverRef.current = name;
-      // 始终回报真实地名；核心省在绘制层已有高亮，文案不再替换成总称
+      hoverRegionRef.current = region;
       hoverCbRef.current?.(
         name,
-        hit ? { name: hit.name, isCore: hit.isCore } : null
+        hit
+          ? { name: hit.name, isCore: hit.isCore, region: hit.region }
+          : null
       );
+      syncGlow();
       paint();
     }
     if (canvasRef.current) {
@@ -897,9 +936,11 @@ export function GeoMap({
 
   const onPointerLeave = () => {
     dragRef.current.active = false;
-    if (hoverRef.current) {
+    if (hoverRef.current || hoverRegionRef.current) {
       hoverRef.current = null;
+      hoverRegionRef.current = null;
       hoverCbRef.current?.(null, null);
+      syncGlow();
       paint();
     }
   };

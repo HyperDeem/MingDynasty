@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { useMingTerritory } from "@/hooks/useMingTerritory";
 import type { TerritoryData } from "@/data/ming-dynasty";
-import { REGION_STYLE } from "@/data/ming-map-layers";
+import { REGION_STYLE, isGlowRegion } from "@/data/ming-map-layers";
 import type { GeoMapApi } from "@/components/map/GeoMap";
 import { SnapshotFloatCard } from "@/components/map/SnapshotFloatCard";
 import {
@@ -59,8 +59,14 @@ export function TerritoryMapPanel({
   } = useMingTerritory(currentYear);
 
   const [hoverName, setHoverName] = useState<string | null>(null);
+  const [hoverRegion, setHoverRegion] = useState<string | null>(null);
+  const [legendHoverRegion, setLegendHoverRegion] = useState<string | null>(
+    null
+  );
   const [mapApi, setMapApi] = useState<GeoMapApi | null>(null);
   const isStage = variant === "stage";
+
+  const activeGlowRegion = hoverRegion ?? legendHoverRegion;
 
   const legendItems = useMemo(() => {
     const items: { id: string; label: string; color: string }[] = [
@@ -137,8 +143,14 @@ export function TerritoryMapPanel({
             previousExtras={previousExtras}
             capitals={capitals}
             crossfade={crossfade}
+            highlightRegion={legendHoverRegion}
             className="absolute inset-0 h-full w-full min-h-[320px] overflow-hidden"
-            onFeatureHover={(name) => setHoverName(name)}
+            onFeatureHover={(name, props) => {
+              setHoverName(name);
+              const region =
+                typeof props?.region === "string" ? props.region : null;
+              setHoverRegion(isGlowRegion(region) ? region : null);
+            }}
             onReady={setMapApi}
           />
         )}
@@ -152,29 +164,78 @@ export function TerritoryMapPanel({
           loading={loading}
         />
 
-        {/* 图例 */}
+        {/* 图例：外延区悬停发光抬升，对应复选框同步亮起；亦可悬停图例反亮地图 */}
         <div
-          className={`pointer-events-none absolute z-10 flex max-w-[min(48%,420px)] flex-wrap justify-end gap-x-2.5 gap-y-1 rounded-full border border-amber-900/10 bg-amber-50/50 px-3 py-1.5 shadow-[0_1px_2px_rgba(48,42,28,0.05)] backdrop-blur-md ${
+          className={`absolute z-10 flex max-w-[min(48%,420px)] flex-wrap justify-end gap-x-1.5 gap-y-1 rounded-full border border-amber-900/10 bg-amber-50/50 px-2.5 py-1.5 shadow-[0_1px_2px_rgba(48,42,28,0.05)] backdrop-blur-md ${
             isStage
               ? "right-3 top-16 md:right-5 md:top-[4.75rem]"
               : "right-3 top-3 md:right-4 md:top-3.5"
           }`}
         >
-          {legendItems.map((item) => (
-            <span
-              key={item.id}
-              className="inline-flex items-center gap-1.5 font-serif text-[11px] tracking-wide text-[#4f544c]"
-            >
-              <i
-                className="inline-block h-2.5 w-2.5 rounded-full border border-amber-900/15"
-                style={{
-                  background: item.color,
-                  boxShadow: `0 0 0 1px ${item.color}`,
+          {legendItems.map((item) => {
+            const interactive = isGlowRegion(item.id);
+            const lit = interactive && activeGlowRegion === item.id;
+            return (
+              <span
+                key={item.id}
+                onMouseEnter={() => {
+                  if (interactive) setLegendHoverRegion(item.id);
                 }}
-              />
-              {item.label}
-            </span>
-          ))}
+                onMouseLeave={() => {
+                  if (interactive) setLegendHoverRegion(null);
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-serif text-[11px] tracking-wide transition duration-200 ${
+                  interactive ? "pointer-events-auto cursor-default" : ""
+                } ${
+                  lit
+                    ? "bg-amber-100/85 text-[#222621] shadow-[0_0_14px_rgba(63,111,100,0.32)]"
+                    : "text-[#4f544c]"
+                }`}
+              >
+                {interactive ? (
+                  <i
+                    aria-hidden
+                    className={`relative inline-grid h-3 w-3 shrink-0 place-items-center rounded-[3px] border transition duration-200 ${
+                      lit
+                        ? "scale-105 border-[#3f6f64] bg-[#3f6f64]/18"
+                        : "border-amber-900/30 bg-amber-50/40"
+                    }`}
+                    style={{
+                      boxShadow: lit
+                        ? `0 0 0 1px ${item.color}55, 0 0 10px ${item.color}88`
+                        : undefined,
+                    }}
+                  >
+                    <svg
+                      viewBox="0 0 12 12"
+                      className={`h-2 w-2 transition duration-200 ${
+                        lit
+                          ? "scale-100 opacity-100"
+                          : "scale-75 opacity-35"
+                      }`}
+                      fill="none"
+                      stroke={item.color}
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M2.2 6.2 4.8 8.8 9.8 3.2" />
+                    </svg>
+                  </i>
+                ) : (
+                  <i
+                    aria-hidden
+                    className="inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-amber-900/15"
+                    style={{
+                      background: item.color,
+                      boxShadow: `0 0 0 1px ${item.color}`,
+                    }}
+                  />
+                )}
+                {item.label}
+              </span>
+            );
+          })}
         </div>
 
         {/* 缩放：细线圆环，统一设计语言 */}
