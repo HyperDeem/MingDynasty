@@ -142,20 +142,20 @@ export function TerritoryMapPanel({
           />
         )}
 
-        {/* 疆域快照：舞台模式抬高，避开底部浮层时间轴 */}
+        {/* 疆域快照：舞台模式抬高，避开底部浮层时间轴；固定尺寸避免切期跳动 */}
         <div
-          className={`pointer-events-none absolute z-10 w-[min(88vw,16.5rem)] rounded-md border border-[#e3dcca] bg-[rgba(251,249,243,0.92)] px-3 py-2.5 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-[8px] md:w-[18.5rem] ${
+          className={`pointer-events-none absolute z-10 flex h-[12.75rem] w-[min(88vw,16.5rem)] flex-col rounded-md border border-[#e3dcca] bg-[rgba(251,249,243,0.92)] px-3 py-2.5 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-[8px] md:h-[13.5rem] md:w-[18.5rem] ${
             isStage
               ? "bottom-[9.5rem] left-3 md:bottom-[10rem] md:left-5"
               : "left-3 top-3 md:left-4 md:top-3.5"
           }`}
         >
-          <header className="flex items-baseline justify-between gap-2">
+          <header className="flex min-h-[2.85rem] shrink-0 items-baseline justify-between gap-2">
             <div className="min-w-0">
               <p className="font-serif text-[9px] tracking-[0.28em] text-[#b6584f]">
                 疆域快照
               </p>
-              <h3 className="mt-1 font-serif text-base font-bold leading-tight tracking-[0.14em] text-[#222621] md:text-lg md:tracking-[0.16em]">
+              <h3 className="mt-1 truncate font-serif text-base font-bold leading-tight tracking-[0.14em] text-[#222621] md:text-lg md:tracking-[0.16em]">
                 {snapshot.label}
               </h3>
             </div>
@@ -166,23 +166,23 @@ export function TerritoryMapPanel({
             )}
           </header>
 
-          {capitals.length > 0 && (
-            <p className="mt-1.5 flex items-baseline gap-2 text-[11px] text-[#4f544c]">
-              <span className="shrink-0 font-serif text-[9px] tracking-[0.2em] text-[#898d80]">
-                都城
-              </span>
-              <span className="font-serif text-[12px] font-semibold tracking-[0.1em] text-[#222621]">
-                {capitals.map((c: CapitalMarker) => c.name).join(" · ")}
-              </span>
-            </p>
-          )}
+          <p className="mt-1.5 flex min-h-[1.25rem] shrink-0 items-baseline gap-2 text-[11px] text-[#4f544c]">
+            <span className="shrink-0 font-serif text-[9px] tracking-[0.2em] text-[#898d80]">
+              都城
+            </span>
+            <span className="truncate font-serif text-[12px] font-semibold tracking-[0.1em] text-[#222621]">
+              {capitals.length > 0
+                ? capitals.map((c: CapitalMarker) => c.name).join(" · ")
+                : "—"}
+            </span>
+          </p>
 
-          <p className="mt-1.5 line-clamp-4 text-[10px] leading-[1.65] tracking-wide text-[#4f544c] md:line-clamp-5 md:text-[11px] md:leading-[1.7]">
+          <p className="mt-1.5 line-clamp-4 min-h-[4.125rem] flex-1 overflow-hidden text-[10px] leading-[1.65] tracking-wide text-[#4f544c] md:min-h-[4.675rem] md:text-[11px] md:leading-[1.7]">
             {snapshot.description}
           </p>
 
           {/* 固定占位，避免悬停省份名时卡片高度突变 */}
-          <p className="mt-1.5 min-h-[1.75rem] border-t border-dashed border-[#e3dcca] pt-1.5 font-serif text-[11px] leading-none tracking-[0.12em] text-[#b6584f]">
+          <p className="mt-1.5 min-h-[1.75rem] shrink-0 border-t border-dashed border-[#e3dcca] pt-1.5 font-serif text-[11px] leading-none tracking-[0.12em] text-[#b6584f]">
             {hoverName ?? "\u00a0"}
           </p>
         </div>
@@ -247,19 +247,6 @@ export function TerritoryMapPanel({
             </button>
           ))}
         </div>
-
-        {crossfade < 0.99 && previousCoreProvinces && (
-          <div
-            className={`pointer-events-none absolute left-3 right-14 z-10 h-0.5 overflow-hidden rounded bg-[#e3dcca] md:left-4 ${
-              isStage ? "bottom-[14.5rem]" : "top-[calc(100%-5.75rem)]"
-            }`}
-          >
-            <div
-              className="h-full bg-[#3f6f64]/70 transition-[width] duration-75"
-              style={{ width: `${crossfade * 100}%` }}
-            />
-          </div>
-        )}
 
         {/* 底部快照轴 */}
         <div

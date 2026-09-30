@@ -101,16 +101,18 @@ export const REGION_STYLE: Record<
 
 /**
  * 地图纸色体系
- * 对齐 lineage-forest 迁徙图：冷灰绿省面 #eef1ec + 纸色衬底 + 青瓷疆域叠色
+ * 冷灰蓝海水 · 暖米非明辖陆地 · 青瓷核心疆域 · 朱砂都城印
  */
 export const MAP_THEME = {
   paper: "#f4f1e9",
   paperRaised: "#fbf9f3",
-  /** 省面填充（参考站 chroma 起点） */
-    land: "#e8ece4",
-    landHover: "#dde3d8",
-    landMuted: "#f3f5f1",
-    boundary: "rgba(79, 84, 76, 0.32)",
+  /** 海洋 / 水体：极淡黛青，衬出大陆轮廓 */
+  ocean: "#E8ECEB",
+  /** 无归属陆地（省面，非核心） */
+  land: "#efe9df",
+  landHover: "#e6ddd0",
+  landMuted: "#f3efe6",
+  boundary: "rgba(79, 84, 76, 0.32)",
   boundaryStrong: "rgba(47, 85, 77, 0.45)",
   ink: "#222621",
   inkSoft: "#4f544c",
@@ -118,7 +120,10 @@ export const MAP_THEME = {
   hairline: "#e3dcca",
   hairlineStrong: "#d4cab2",
   core: REGION_STYLE.core.fill,
-  capital: "#b6584f",
+  /** 都城朱砂印 */
+  capital: "#c43c2c",
+  capitalGlow: "rgba(196, 60, 44, 0.4)",
+  capitalRim: "#9a2e22",
 } as const;
 
 export interface CapitalMarker {

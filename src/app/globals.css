@@ -73,11 +73,9 @@ main {
   }
 }
 
-/* 疆域图 Canvas：对齐 lineage-forest 迁徙图冷灰绿衬底 */
+/* 疆域图 Canvas：海洋黛青衬底，与无归属陆地米暖色区分 */
 .territory-canvas-wrap {
-  background:
-    linear-gradient(180deg, #f8f9f5bd, #eff2ec94),
-    var(--paper, #f4f1e9);
+  background: #e8eceb;
 }
 
 .territory-render-canvas {

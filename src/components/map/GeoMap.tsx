@@ -302,7 +302,12 @@ export function GeoMap({
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
 
-    // 省面
+    // 海洋 / 水体底色（与无归属陆地米暖色区分）
+    ctx.fillStyle = MAP_THEME.ocean;
+    ctx.fillRect(0, 0, w, h);
+
+    // 省面：无归属陆地
+    const coreUnion = new Path2D();
     for (let i = 0; i < provinces.length; i++) {
       const p = provinces[i];
       const path = paths.provinces[i];
@@ -313,15 +318,51 @@ export function GeoMap({
       ctx.fill(path);
 
       if (hasPrev && prevSet.has(p.name)) {
-        ctx.fillStyle = hexToRgba(MAP_THEME.core, (1 - t) * 0.32);
+        ctx.fillStyle = hexToRgba(MAP_THEME.core, (1 - t) * 0.28);
         ctx.fill(path);
       }
       if (isCore) {
         ctx.fillStyle = hexToRgba(
           MAP_THEME.core,
-          (hasPrev ? t : 1) * (isHover ? 0.4 : 0.32)
+          (hasPrev ? t : 1) * (isHover ? 0.34 : 0.26)
         );
         ctx.fill(path);
+        coreUnion.addPath(path);
+      }
+    }
+
+    // 核心疆域：都城放射渐变 + 边缘内阴影羽化
+    if (coreSet.size > 0) {
+      const coreAlpha = hasPrev ? t : 1;
+      if (coreAlpha > 0.02) {
+        ctx.save();
+        ctx.clip(coreUnion);
+
+        const glowR = Math.max(w, h) * 0.42;
+        const centers =
+          caps.length > 0
+            ? caps.map((c) => project(c.coordinates[0], c.coordinates[1], view))
+            : ([[w * 0.55, h * 0.38]] as [number, number][]);
+
+        for (const [cx, cy] of centers) {
+          const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowR);
+          grad.addColorStop(0, hexToRgba(MAP_THEME.core, 0.22 * coreAlpha));
+          grad.addColorStop(0.35, hexToRgba(MAP_THEME.core, 0.1 * coreAlpha));
+          grad.addColorStop(0.7, hexToRgba(MAP_THEME.core, 0.03 * coreAlpha));
+          grad.addColorStop(1, "rgba(63,111,100,0)");
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, w, h);
+        }
+
+        // 边缘内阴影：宽描边压在剪裁域内，形成微弱羽化
+        ctx.strokeStyle = `rgba(28, 48, 42, ${0.22 * coreAlpha})`;
+        ctx.lineWidth = 10;
+        ctx.stroke(coreUnion);
+        ctx.strokeStyle = `rgba(28, 48, 42, ${0.12 * coreAlpha})`;
+        ctx.lineWidth = 18;
+        ctx.stroke(coreUnion);
+
+        ctx.restore();
       }
     }
 
@@ -388,28 +429,54 @@ export function GeoMap({
       ctx.fillText(e.name, x, y);
     }
 
+    // 都城：朱砂小印章
     for (const c of caps) {
       const [x, y] = project(c.coordinates[0], c.coordinates[1], view);
+      const seal = 5.2;
+
+      ctx.save();
+      ctx.shadowColor = MAP_THEME.capitalGlow;
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 1;
+
+      // 外缘宣纸环
       ctx.beginPath();
-      ctx.arc(x, y, 6.5, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(251, 249, 243, 0.95)";
+      ctx.arc(x, y, seal + 2.4, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(251, 249, 243, 0.96)";
       ctx.fill();
+
+      // 朱砂印面（略方的圆角印）
+      const half = seal * 0.92;
       ctx.beginPath();
-      ctx.arc(x, y, 3.4, 0, Math.PI * 2);
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(x - half, y - half, half * 2, half * 2, 1.6);
+      } else {
+        ctx.rect(x - half, y - half, half * 2, half * 2);
+      }
       ctx.fillStyle = MAP_THEME.capital;
       ctx.fill();
-      ctx.lineWidth = 1.4;
-      ctx.strokeStyle = MAP_THEME.paperRaised;
+      ctx.shadowColor = "transparent";
+      ctx.lineWidth = 1.1;
+      ctx.strokeStyle = MAP_THEME.capitalRim;
       ctx.stroke();
+
+      // 印心高光点
+      ctx.beginPath();
+      ctx.arc(x - 1.1, y - 1.2, 1.15, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255, 236, 230, 0.55)";
+      ctx.fill();
+      ctx.restore();
+
       ctx.font =
-        '600 11px "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif';
+        '700 11px "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif';
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      ctx.lineWidth = 2.6;
-      ctx.strokeStyle = "rgba(248, 249, 245, 0.95)";
-      ctx.strokeText(c.name, x, y + 8);
-      ctx.fillStyle = MAP_THEME.inkSoft;
-      ctx.fillText(c.name, x, y + 8);
+      ctx.lineWidth = 2.8;
+      ctx.strokeStyle = "rgba(248, 249, 245, 0.96)";
+      ctx.strokeText(c.name, x, y + seal + 4);
+      ctx.fillStyle = MAP_THEME.capital;
+      ctx.fillText(c.name, x, y + seal + 4);
     }
   }, [getPaths]);
 
