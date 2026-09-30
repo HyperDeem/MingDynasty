@@ -21,8 +21,8 @@ export function InheritanceBar({ emperorId, onNavigate }: InheritanceBarProps) {
   const { prev, next } = getInheritanceComparison(emperorId);
 
   return (
-    <div className="flex min-h-[18rem] flex-col bg-[rgba(243,239,228,0.28)] px-3 py-4 md:min-h-[22rem] md:px-5 md:py-5">
-      <p className="mb-3 text-center font-display text-[10px] tracking-[0.28em] text-ink-400">
+    <div className="museum-emp-surface flex min-h-[18rem] flex-col bg-[rgba(243,239,228,0.28)] px-3 py-4 md:min-h-[22rem] md:px-5 md:py-5">
+      <p className="museum-emp-dt mb-3 text-center font-display text-[10px] tracking-[0.28em] text-ink-400">
         继承逻辑
       </p>
 
@@ -50,7 +50,7 @@ export function InheritanceBar({ emperorId, onNavigate }: InheritanceBarProps) {
 
         <motion.div
           layout
-          className="flex flex-col items-center justify-center border border-cinnabar/35 bg-cinnabar/[0.07] px-3 py-4 text-center md:py-5"
+          className="museum-emp-card museum-emp-card-active flex flex-col items-center justify-center border border-cinnabar/35 bg-cinnabar/[0.07] px-3 py-4 text-center md:py-5"
         >
           <p className="font-display text-[10px] tracking-[0.22em] text-cinnabar">
             当前
@@ -61,11 +61,11 @@ export function InheritanceBar({ emperorId, onNavigate }: InheritanceBarProps) {
             size="sm"
             className="mt-3 !h-[5.5rem] !w-[4.1rem] md:!h-[6.5rem] md:!w-[4.85rem]"
           />
-          <p className="mt-3 font-display text-lg font-bold tracking-wide text-ink-900 md:text-xl">
+          <p className="museum-emp-title mt-3 font-serif text-lg font-bold tracking-wide text-ink-900 md:text-xl">
             {displayReignHonorific(current)}
           </p>
           {current.throneOrder != null && (
-            <p className="mt-1 text-[11px] text-ink-400">
+            <p className="museum-emp-dt mt-1 font-mono text-[11px] text-ink-400">
               第 {current.throneOrder} 任
             </p>
           )}
@@ -113,7 +113,7 @@ function NeighborBlock({
 }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 px-1 py-1 text-center">
-      <p className="font-display text-[10px] tracking-[0.2em] text-ink-400">
+      <p className="museum-emp-dt font-display text-[10px] tracking-[0.2em] text-ink-400">
         {label}
       </p>
       {emperorId && (
@@ -124,21 +124,25 @@ function NeighborBlock({
           className="!h-[5.25rem] !w-[3.9rem] md:!h-[6.25rem] md:!w-[4.65rem]"
         />
       )}
-      <p className="font-display text-base font-bold tracking-wide text-ink-900 md:text-lg">
+      <p className="museum-emp-title font-serif text-base font-bold tracking-wide text-ink-900 md:text-lg">
         {honorific}
       </p>
       <dl className="mt-0.5 w-full max-w-[11rem] space-y-2 text-left text-[12px] md:text-[13px]">
-        <div className="flex items-baseline justify-between gap-3 border-b border-ink-800/8 pb-1.5">
-          <dt className="shrink-0 text-[10px] tracking-wider text-ink-400">
+        <div className="museum-glass-rule flex items-baseline justify-between gap-3 border-b border-ink-800/8 pb-1.5">
+          <dt className="museum-emp-dt shrink-0 font-mono text-[10px] tracking-wider text-ink-400">
             血缘
           </dt>
-          <dd className="text-right font-medium text-ink-800">{kinship}</dd>
+          <dd className="museum-emp-dd text-right font-mono font-medium text-ink-800">
+            {kinship}
+          </dd>
         </div>
         <div className="flex items-baseline justify-between gap-3">
-          <dt className="shrink-0 text-[10px] tracking-wider text-ink-400">
+          <dt className="museum-emp-dt shrink-0 font-mono text-[10px] tracking-wider text-ink-400">
             继承
           </dt>
-          <dd className="text-right font-medium text-ink-800">{modeLabel}</dd>
+          <dd className="museum-emp-dd text-right font-mono font-medium text-ink-800">
+            {modeLabel}
+          </dd>
         </div>
       </dl>
     </div>
@@ -148,10 +152,12 @@ function NeighborBlock({
 function EmptySlot({ label, hint }: { label: string; hint: string }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-2 py-6 text-center">
-      <p className="font-display text-[10px] tracking-[0.2em] text-ink-400">
+      <p className="museum-emp-dt font-display text-[10px] tracking-[0.2em] text-ink-400">
         {label}
       </p>
-      <p className="text-sm text-ink-400">{hint}</p>
+      <p className="museum-emp-body text-sm leading-relaxed text-ink-400">
+        {hint}
+      </p>
     </div>
   );
 }
@@ -171,7 +177,7 @@ function SideCard({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`min-h-[14rem] border border-ink-800/10 bg-[rgba(251,249,243,0.55)] px-3 py-4 transition-colors md:min-h-0 md:py-5 ${
+      className={`museum-emp-card min-h-[14rem] border border-ink-800/10 bg-[rgba(251,249,243,0.55)] px-3 py-4 transition-colors md:min-h-0 md:py-5 ${
         disabled
           ? "cursor-default opacity-55"
           : "hover:border-cinnabar/35 hover:bg-ink-50/75"

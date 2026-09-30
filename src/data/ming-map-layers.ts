@@ -76,25 +76,25 @@ export const REGION_STYLE: Record<
   jiaozhi: {
     fill: "#4f8a7d",
     stroke: "#3f6f64",
-    opacity: 0.32,
+    opacity: 0.15,
     label: "交趾布政司",
   },
   nurgan: {
     fill: "#5d8a6b",
     stroke: "#3f6f64",
-    opacity: 0.26,
+    opacity: 0.15,
     label: "奴儿干都司",
   },
   northwest: {
     fill: "#6f7f96",
     stroke: "#41506e",
-    opacity: 0.26,
+    opacity: 0.15,
     label: "西北羁縻",
   },
   maritime: {
     fill: "#b08a3e",
     stroke: "#8a6c30",
-    opacity: 0.22,
+    opacity: 0.15,
     label: "东南海贸带",
   },
 };
@@ -116,6 +116,13 @@ export function isGlowRegion(id: string | null | undefined): id is GlowRegionId 
     id === "northwest" ||
     id === "maritime"
   );
+}
+
+/** 羁縻 / 示意影响力区（非省界对齐的虚实多边形） */
+export function isInfluenceRegion(
+  id: string | null | undefined
+): id is GlowRegionId {
+  return isGlowRegion(id);
 }
 
 /**
@@ -264,7 +271,7 @@ const EXTRA_GEOMETRIES: Record<string, Feature<Polygon>> = {
       name: "奴儿干都司（名义）",
       region: "nurgan",
       fill: REGION_STYLE.nurgan.fill,
-      opacityHint: 0.2,
+      opacityHint: 0.15,
     },
     geometry: {
       type: "Polygon",
@@ -317,7 +324,7 @@ const EXTRA_GEOMETRIES: Record<string, Feature<Polygon>> = {
       name: "甘肃—哈密边缘",
       region: "northwest",
       fill: REGION_STYLE.northwest.fill,
-      opacityHint: 0.28,
+      opacityHint: 0.15,
     },
     geometry: {
       type: "Polygon",
@@ -342,7 +349,7 @@ const EXTRA_GEOMETRIES: Record<string, Feature<Polygon>> = {
       name: "九边沿线",
       region: "northwest",
       fill: REGION_STYLE.northwest.fill,
-      opacityHint: 0.26,
+      opacityHint: 0.15,
     },
     geometry: {
       type: "Polygon",

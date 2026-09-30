@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DYNASTY_META,
   getPeriodById,
@@ -39,6 +39,13 @@ export default function HomePage() {
     null
   );
   const [isMuseumMode, setIsMuseumMode] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("museum-mode", isMuseumMode);
+    return () => {
+      document.documentElement.classList.remove("museum-mode");
+    };
+  }, [isMuseumMode]);
 
   const territory = useMemo(
     () => getPeriodContent(periodId).territory,

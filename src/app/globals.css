@@ -169,7 +169,204 @@ main {
 
 .museum-mode .museum-panel h2,
 .museum-mode .museum-panel .museum-glass-text {
-  color: #e8e6df !important;
+  color: #f8fafc !important;
+}
+
+/* 帝王浮窗：暗色文字层次 */
+.museum-mode .museum-panel .museum-emp-title,
+.museum-mode .museum-emp-scope .museum-emp-title {
+  color: #f8fafc !important;
+}
+
+.museum-mode .museum-panel .museum-emp-title.text-cinnabar,
+.museum-mode .museum-emp-scope .museum-emp-title.text-cinnabar,
+.museum-mode .museum-panel .text-cinnabar.museum-emp-title,
+.museum-mode .museum-emp-scope .text-cinnabar.museum-emp-title {
+  color: #f87171 !important;
+}
+
+.museum-mode .museum-panel .museum-emp-dt,
+.museum-mode .museum-emp-scope .museum-emp-dt {
+  color: #94a3b8 !important;
+}
+
+.museum-mode .museum-panel .museum-emp-dd,
+.museum-mode .museum-emp-scope .museum-emp-dd {
+  color: #cbd5e1 !important;
+}
+
+.museum-mode .museum-panel .museum-emp-body,
+.museum-mode .museum-emp-scope .museum-emp-body {
+  color: #e2e8f0 !important;
+}
+
+.museum-mode .museum-panel .museum-emp-tabs {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(15, 23, 42, 0.35) !important;
+}
+
+.museum-mode .museum-panel .museum-emp-tab {
+  background: rgba(30, 41, 59, 0.45) !important;
+  color: #94a3b8 !important;
+}
+
+.museum-mode .museum-panel .museum-emp-tab:hover {
+  background: rgba(51, 65, 85, 0.65) !important;
+  color: #e2e8f0 !important;
+}
+
+.museum-mode .museum-panel .museum-emp-tab-active {
+  background: rgba(51, 65, 85, 0.95) !important;
+  color: #f8fafc !important;
+}
+
+.museum-mode .museum-panel .museum-emp-nav {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.museum-mode .museum-panel .museum-emp-nav-btn {
+  border-color: rgb(51 65 85) !important;
+  background: rgba(30, 41, 59, 0.6) !important;
+  color: #e2e8f0 !important;
+}
+
+.museum-mode .museum-panel .museum-emp-nav-btn:hover:enabled {
+  border-color: rgba(251, 191, 36, 0.45) !important;
+  background: rgba(51, 65, 85, 0.85) !important;
+  color: #fde68a !important;
+}
+
+.museum-mode .museum-panel .museum-emp-nav-btn .museum-emp-dt,
+.museum-mode .museum-panel .museum-emp-nav-btn .museum-emp-muted {
+  color: #94a3b8 !important;
+}
+
+.museum-mode .museum-panel .museum-emp-nav-btn .museum-emp-nav-name {
+  color: #e2e8f0 !important;
+}
+
+.museum-mode .museum-panel .museum-emp-archive {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(30, 41, 59, 0.45) !important;
+}
+
+.museum-mode .museum-panel .museum-emp-archive button:hover {
+  background: rgba(51, 65, 85, 0.35) !important;
+}
+
+.museum-mode .museum-panel .museum-emp-archive .museum-emp-title {
+  color: #f8fafc !important;
+}
+
+/* 档案 / 血缘：通用墨色 → 暗色可读映射 */
+.museum-mode .museum-panel .text-ink-900,
+.museum-mode .museum-panel .text-ink-800,
+.museum-mode .museum-emp-scope .text-ink-900,
+.museum-mode .museum-emp-scope .text-ink-800 {
+  color: #f8fafc !important;
+}
+
+.museum-mode .museum-panel .text-ink-700,
+.museum-mode .museum-panel .text-ink-600,
+.museum-mode .museum-emp-scope .text-ink-700,
+.museum-mode .museum-emp-scope .text-ink-600 {
+  color: #e2e8f0 !important;
+}
+
+.museum-mode .museum-panel .text-ink-500,
+.museum-mode .museum-emp-scope .text-ink-500 {
+  color: #cbd5e1 !important;
+}
+
+.museum-mode .museum-panel .text-ink-400,
+.museum-mode .museum-panel .text-ink-300,
+.museum-mode .museum-emp-scope .text-ink-400,
+.museum-mode .museum-emp-scope .text-ink-300 {
+  color: #94a3b8 !important;
+}
+
+.museum-mode .museum-panel .bg-ink-50\/95,
+.museum-mode .museum-panel .bg-ink-50\/80,
+.museum-mode .museum-panel .bg-ink-50\/60,
+.museum-mode .museum-panel .bg-ink-100\/80,
+.museum-mode .museum-panel .bg-ink-100\/70,
+.museum-mode .museum-emp-scope .bg-ink-50\/95,
+.museum-mode .museum-emp-scope .bg-ink-50\/80,
+.museum-mode .museum-emp-scope .bg-ink-50\/60,
+.museum-mode .museum-emp-scope .bg-ink-100\/80,
+.museum-mode .museum-emp-scope .bg-ink-100\/70 {
+  background-color: rgba(30, 41, 59, 0.88) !important;
+}
+
+.museum-mode .museum-panel .museum-emp-surface,
+.museum-mode .museum-emp-scope .museum-emp-surface {
+  background: rgba(15, 23, 42, 0.4) !important;
+}
+
+.museum-mode .museum-panel .museum-emp-card,
+.museum-mode .museum-emp-scope .museum-emp-card {
+  border-color: rgb(51 65 85) !important;
+  background: rgba(30, 41, 59, 0.6) !important;
+  color: #e2e8f0;
+}
+
+.museum-mode .museum-panel .museum-emp-card:hover:enabled,
+.museum-mode .museum-emp-scope .museum-emp-card:hover:enabled {
+  border-color: rgba(251, 191, 36, 0.4) !important;
+  background: rgba(51, 65, 85, 0.75) !important;
+}
+
+.museum-mode .museum-panel .museum-emp-card-active,
+.museum-mode .museum-emp-scope .museum-emp-card-active {
+  border-color: rgba(196, 60, 44, 0.45) !important;
+  background: rgba(196, 60, 44, 0.16) !important;
+}
+
+.museum-mode .museum-panel .museum-emp-nav-btn,
+.museum-mode .museum-emp-scope .museum-emp-nav-btn {
+  border-color: rgb(51 65 85) !important;
+  background: rgba(30, 41, 59, 0.6) !important;
+  color: #e2e8f0 !important;
+}
+
+.museum-mode .museum-panel .museum-emp-nav-btn:hover:enabled,
+.museum-mode .museum-emp-scope .museum-emp-nav-btn:hover:enabled {
+  border-color: rgba(251, 191, 36, 0.45) !important;
+  background: rgba(51, 65, 85, 0.85) !important;
+  color: #fde68a !important;
+}
+
+.museum-mode .museum-panel .museum-emp-chip,
+.museum-mode .museum-emp-scope .museum-emp-chip {
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  background: rgba(51, 65, 85, 0.55) !important;
+  color: #e2e8f0 !important;
+}
+
+.museum-mode .museum-panel .museum-emp-chip.text-cinnabar,
+.museum-mode .museum-emp-scope .museum-emp-chip.text-cinnabar {
+  border-color: rgba(196, 60, 44, 0.4) !important;
+  background: rgba(196, 60, 44, 0.14) !important;
+  color: #fca5a5 !important;
+}
+
+.museum-mode .museum-panel .museum-emp-toolbar,
+.museum-mode .museum-emp-scope .museum-emp-toolbar {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(15, 23, 42, 0.45) !important;
+}
+
+.museum-mode .museum-panel .museum-emp-note,
+.museum-mode .museum-emp-scope .museum-emp-note {
+  border-color: rgba(248, 113, 113, 0.35) !important;
+  background: rgba(127, 29, 29, 0.25) !important;
+  color: #e2e8f0 !important;
+}
+
+.museum-mode .museum-emp-scope {
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.96);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .museum-mode .museum-legend-lit {

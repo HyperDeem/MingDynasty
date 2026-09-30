@@ -120,7 +120,7 @@ export function EmperorDrawer({
       >
         {activeEmperor && emperor && archivePerson && (
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="flex shrink-0 gap-1 border-b border-ink-800/10 bg-[rgba(251,249,243,0.25)] px-2 py-1.5 md:px-3 md:py-2">
+            <div className="museum-emp-tabs flex shrink-0 gap-1 border-b border-ink-800/10 bg-[rgba(251,249,243,0.25)] px-2 py-1.5 md:px-3 md:py-2">
               {TABS.map((t) => (
                 <button
                   key={t.id}
@@ -128,8 +128,8 @@ export function EmperorDrawer({
                   onClick={() => setTab(t.id)}
                   className={`flex-1 rounded-sm px-1.5 py-1.5 font-display text-[11px] transition md:px-2.5 md:text-xs ${
                     tab === t.id
-                      ? "bg-ink-800/85 text-ink-50"
-                      : "bg-[rgba(251,249,243,0.35)] text-ink-500 hover:bg-ink-800/[0.08] hover:text-ink-800"
+                      ? "museum-emp-tab-active bg-ink-800/85 text-ink-50"
+                      : "museum-emp-tab bg-[rgba(251,249,243,0.35)] text-ink-500 hover:bg-ink-800/[0.08] hover:text-ink-800"
                   }`}
                 >
                   {t.label}
@@ -154,23 +154,23 @@ export function EmperorDrawer({
                           className="!h-28 !w-[5.25rem] md:!h-32 md:!w-24 lg:!h-36 lg:!w-[6.5rem]"
                         />
                         <div className="flex min-w-0 flex-1 flex-col justify-center">
-                          <h3 className="font-display text-lg font-bold tracking-wide text-ink-900 md:text-xl md:tracking-wider lg:text-2xl">
+                          <h3 className="museum-emp-title font-serif text-lg font-bold tracking-wide text-ink-900 md:text-xl md:tracking-wider lg:text-2xl">
                             {emperor.name}
                           </h3>
-                          <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] text-ink-500 md:mt-3 md:gap-y-2 md:text-xs">
+                          <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] md:mt-3 md:gap-y-2 md:text-xs">
                             <div>
-                              <dt className="tracking-wider text-ink-400">
+                              <dt className="museum-emp-dt font-mono tracking-wider text-ink-400">
                                 生卒
                               </dt>
-                              <dd className="mt-0.5 tabular-nums tracking-wide text-ink-700">
+                              <dd className="museum-emp-dd mt-0.5 font-mono tabular-nums tracking-wide text-ink-700">
                                 {emperor.lifespan}
                               </dd>
                             </div>
                             <div>
-                              <dt className="tracking-wider text-ink-400">
+                              <dt className="museum-emp-dt font-mono tracking-wider text-ink-400">
                                 在位
                               </dt>
-                              <dd className="mt-0.5 tabular-nums tracking-wide text-ink-700">
+                              <dd className="museum-emp-dd mt-0.5 font-mono tabular-nums tracking-wide text-ink-700">
                                 {emperor.reignYears}
                               </dd>
                             </div>
@@ -178,12 +178,12 @@ export function EmperorDrawer({
                         </div>
                       </div>
 
-                      <p className="mt-4 min-h-0 flex-1 overflow-y-auto text-[13px] leading-[1.9] tracking-wide text-ink-600 scrollbar-timeline md:mt-5 md:text-sm md:leading-[2.05] md:tracking-[0.04em] lg:mt-6 lg:text-[15px] lg:leading-[2.2] lg:tracking-[0.055em]">
+                      <p className="museum-emp-body mt-4 min-h-0 flex-1 overflow-y-auto text-sm leading-relaxed tracking-wide text-ink-600 scrollbar-timeline md:mt-5 md:tracking-[0.04em] lg:mt-6 lg:text-[15px] lg:leading-relaxed lg:tracking-[0.055em]">
                         {emperor.summary}
                       </p>
                     </div>
 
-                    <div className="flex shrink-0 items-stretch gap-2 border-t border-ink-800/10 px-2 py-2 md:px-3">
+                    <div className="museum-emp-nav flex shrink-0 items-stretch gap-2 border-t border-ink-800/10 px-2 py-2 md:px-3">
                       <button
                         type="button"
                         disabled={!neighbors?.prev}
@@ -191,21 +191,21 @@ export function EmperorDrawer({
                           neighbors?.prev &&
                           onSelectEmperor(neighbors.prev.emperorId)
                         }
-                        className="flex min-w-0 flex-1 items-center gap-2 rounded-sm border border-ink-800/12 bg-ink-50/80 px-2.5 py-2 text-left transition enabled:hover:border-cinnabar/35 enabled:hover:text-cinnabar disabled:cursor-default disabled:opacity-35"
+                        className="museum-emp-nav-btn flex min-w-0 flex-1 items-center gap-2 rounded-sm border border-ink-800/12 bg-ink-50/80 px-2.5 py-2 text-left transition enabled:hover:border-cinnabar/35 enabled:hover:text-cinnabar disabled:cursor-default disabled:opacity-35"
                         aria-label={
                           prevEmperor
                             ? `上一任 ${prevEmperor.templeName ?? prevEmperor.name}`
                             : "已无上一任"
                         }
                       >
-                        <span className="shrink-0 font-display text-base text-ink-400">
+                        <span className="museum-emp-muted shrink-0 font-display text-base text-ink-400">
                           ←
                         </span>
                         <span className="min-w-0">
-                          <span className="block text-[9px] tracking-wider text-ink-400">
+                          <span className="museum-emp-dt block text-[9px] tracking-wider text-ink-400">
                             上一任
                           </span>
-                          <span className="block truncate font-display text-[12px] font-semibold text-ink-800 md:text-[13px]">
+                          <span className="museum-emp-nav-name block truncate font-display text-[12px] font-semibold text-ink-800 md:text-[13px]">
                             {prevEmperor
                               ? prevEmperor.reigns[0]?.title ??
                                 prevEmperor.templeName ??
@@ -221,7 +221,7 @@ export function EmperorDrawer({
                           neighbors?.next &&
                           onSelectEmperor(neighbors.next.emperorId)
                         }
-                        className="flex min-w-0 flex-1 items-center justify-end gap-2 rounded-sm border border-ink-800/12 bg-ink-50/80 px-2.5 py-2 text-right transition enabled:hover:border-cinnabar/35 enabled:hover:text-cinnabar disabled:cursor-default disabled:opacity-35"
+                        className="museum-emp-nav-btn flex min-w-0 flex-1 items-center justify-end gap-2 rounded-sm border border-ink-800/12 bg-ink-50/80 px-2.5 py-2 text-right transition enabled:hover:border-cinnabar/35 enabled:hover:text-cinnabar disabled:cursor-default disabled:opacity-35"
                         aria-label={
                           nextEmperor
                             ? `下一任 ${nextEmperor.templeName ?? nextEmperor.name}`
@@ -229,10 +229,10 @@ export function EmperorDrawer({
                         }
                       >
                         <span className="min-w-0">
-                          <span className="block text-[9px] tracking-wider text-ink-400">
+                          <span className="museum-emp-dt block text-[9px] tracking-wider text-ink-400">
                             下一任
                           </span>
-                          <span className="block truncate font-display text-[12px] font-semibold text-ink-800 md:text-[13px]">
+                          <span className="museum-emp-nav-name block truncate font-display text-[12px] font-semibold text-ink-800 md:text-[13px]">
                             {nextEmperor
                               ? nextEmperor.reigns[0]?.title ??
                                 nextEmperor.templeName ??
@@ -240,7 +240,7 @@ export function EmperorDrawer({
                               : "终祚"}
                           </span>
                         </span>
-                        <span className="shrink-0 font-display text-base text-ink-400">
+                        <span className="museum-emp-muted shrink-0 font-display text-base text-ink-400">
                           →
                         </span>
                       </button>
@@ -344,7 +344,7 @@ function ArchiveThumb({
   children: React.ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-sm border border-ink-800/12 bg-[rgba(251,249,243,0.4)]">
+    <div className="museum-emp-archive overflow-hidden rounded-sm border border-ink-800/12 bg-[rgba(251,249,243,0.4)]">
       <button
         type="button"
         onClick={onToggle}
@@ -359,10 +359,10 @@ function ArchiveThumb({
           </span>
         )}
         <span className="min-w-0 flex-1">
-          <span className="block font-display text-[10px] tracking-[0.22em] text-ink-400">
+          <span className="museum-emp-dt block font-display text-[10px] tracking-[0.22em] text-ink-400">
             {eyebrow}
           </span>
-          <span className="mt-0.5 block truncate font-display text-sm font-semibold text-ink-900">
+          <span className="museum-emp-title mt-0.5 block truncate font-display text-sm font-semibold text-ink-900">
             {title}
           </span>
         </span>

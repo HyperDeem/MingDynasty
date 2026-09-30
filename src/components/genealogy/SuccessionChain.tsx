@@ -29,12 +29,12 @@ export function SuccessionChain({ activeId, onSelect }: SuccessionChainProps) {
   }, [activeId]);
 
   return (
-    <div className="border-t border-ink-800/10 px-4 py-3 md:px-6">
+    <div className="museum-emp-surface border-t border-ink-800/10 px-4 py-3 md:px-6">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <p className="font-display text-[10px] tracking-[0.25em] text-ink-400">
+        <p className="museum-emp-dt font-display text-[10px] tracking-[0.25em] text-ink-400">
           帝位承袭链
         </p>
-        <p className="text-[10px] text-ink-400">明朝十六帝</p>
+        <p className="museum-emp-dt text-[10px] text-ink-400">明朝十六帝</p>
       </div>
 
       <ol
@@ -54,23 +54,23 @@ export function SuccessionChain({ activeId, onSelect }: SuccessionChainProps) {
               <button
                 type="button"
                 onClick={() => onSelect(step.emperorId)}
-                className={`flex min-w-[4.5rem] flex-col items-center border px-2 py-2 transition-colors ${
+                className={`museum-emp-card flex min-w-[4.5rem] flex-col items-center border px-2 py-2 transition-colors ${
                   active
-                    ? "border-cinnabar/40 bg-cinnabar/[0.08]"
+                    ? "museum-emp-card-active border-cinnabar/40 bg-cinnabar/[0.08]"
                     : "border-ink-800/10 bg-ink-50/60 hover:border-ink-800/25"
                 }`}
               >
-                <span className="text-[9px] tabular-nums text-ink-400">
+                <span className="museum-emp-dt font-mono text-[9px] tabular-nums text-ink-400">
                   {step.orderLabel}
                 </span>
                 <span
-                  className={`mt-0.5 font-display text-xs font-bold ${
+                  className={`museum-emp-title mt-0.5 font-serif text-xs font-bold ${
                     active ? "text-cinnabar" : "text-ink-800"
                   }`}
                 >
                   {reignLabel}
                 </span>
-                <span className="mt-0.5 max-w-[4.2rem] truncate text-[9px] text-ink-500">
+                <span className="museum-emp-dd mt-0.5 max-w-[4.2rem] truncate font-mono text-[9px] text-ink-500">
                   {person.name}
                 </span>
               </button>

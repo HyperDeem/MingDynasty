@@ -244,13 +244,13 @@ export function GenealogyGraph({
 
   return (
     <div className={`relative flex h-full min-h-0 flex-col ${className}`}>
-      <div className="flex shrink-0 items-center justify-center gap-2 border-b border-ink-800/10 bg-[rgba(251,249,243,0.22)] px-3 py-1.5 md:px-4">
+      <div className="museum-emp-toolbar flex shrink-0 items-center justify-center gap-2 border-b border-ink-800/10 bg-[rgba(251,249,243,0.22)] px-3 py-1.5 md:px-4">
         {mode === "full" && <Legend />}
         {mode === "ego" && onRequestFullscreen && (
           <button
             type="button"
             onClick={onRequestFullscreen}
-            className="border border-ink-800/15 bg-[rgba(251,249,243,0.55)] px-2.5 py-1 text-[11px] text-ink-600 transition hover:border-cinnabar/40 hover:text-cinnabar"
+            className="museum-emp-nav-btn border border-ink-800/15 bg-[rgba(251,249,243,0.55)] px-2.5 py-1 text-[11px] text-ink-600 transition hover:border-cinnabar/40 hover:text-cinnabar"
           >
             展开全景
           </button>
@@ -259,7 +259,7 @@ export function GenealogyGraph({
           <button
             type="button"
             onClick={onExitFullscreen}
-            className="border border-ink-800/15 bg-[rgba(251,249,243,0.55)] px-2.5 py-1 text-[11px] text-ink-600 transition hover:border-cinnabar/40 hover:text-cinnabar"
+            className="museum-emp-nav-btn border border-ink-800/15 bg-[rgba(251,249,243,0.55)] px-2.5 py-1 text-[11px] text-ink-600 transition hover:border-cinnabar/40 hover:text-cinnabar"
           >
             收起全景
           </button>
@@ -450,11 +450,11 @@ export function GenealogyGraph({
             onClick={() => nudgeScale(0.12)}
             disabled={userScale >= maxUser - 0.001}
             aria-label="放大血缘树"
-            className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/35 bg-[rgba(251,249,243,0.28)] font-display text-2xl leading-none text-ink-800 shadow-[0_6px_20px_-10px_rgba(48,42,28,0.4)] backdrop-blur-[10px] transition hover:border-cinnabar/40 hover:bg-[rgba(251,249,243,0.55)] hover:text-cinnabar disabled:cursor-default disabled:opacity-30"
+            className="pointer-events-auto museum-emp-nav-btn flex h-12 w-12 items-center justify-center rounded-full border border-white/35 bg-[rgba(251,249,243,0.28)] font-display text-2xl leading-none text-ink-800 shadow-[0_6px_20px_-10px_rgba(48,42,28,0.4)] backdrop-blur-[10px] transition hover:border-cinnabar/40 hover:bg-[rgba(251,249,243,0.55)] hover:text-cinnabar disabled:cursor-default disabled:opacity-30"
           >
             +
           </button>
-          <span className="pointer-events-none min-w-[2.75rem] rounded-full border border-white/30 bg-[rgba(251,249,243,0.22)] px-2.5 py-1 text-center font-display text-[10px] tabular-nums tracking-wider text-ink-600 backdrop-blur-[10px]">
+          <span className="pointer-events-none museum-emp-chip min-w-[2.75rem] rounded-full border border-white/30 bg-[rgba(251,249,243,0.22)] px-2.5 py-1 text-center font-display text-[10px] tabular-nums tracking-wider text-ink-600 backdrop-blur-[10px]">
             {displayPct}%
           </span>
           <button
@@ -462,7 +462,7 @@ export function GenealogyGraph({
             onClick={() => nudgeScale(-0.12)}
             disabled={userScale <= minUser + 0.001}
             aria-label="缩小血缘树"
-            className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/35 bg-[rgba(251,249,243,0.28)] font-display text-2xl leading-none text-ink-800 shadow-[0_6px_20px_-10px_rgba(48,42,28,0.4)] backdrop-blur-[10px] transition hover:border-cinnabar/40 hover:bg-[rgba(251,249,243,0.55)] hover:text-cinnabar disabled:cursor-default disabled:opacity-30"
+            className="pointer-events-auto museum-emp-nav-btn flex h-12 w-12 items-center justify-center rounded-full border border-white/35 bg-[rgba(251,249,243,0.28)] font-display text-2xl leading-none text-ink-800 shadow-[0_6px_20px_-10px_rgba(48,42,28,0.4)] backdrop-blur-[10px] transition hover:border-cinnabar/40 hover:bg-[rgba(251,249,243,0.55)] hover:text-cinnabar disabled:cursor-default disabled:opacity-30"
           >
             −
           </button>
@@ -510,7 +510,7 @@ export function GenealogyFullscreen({
           transition={{ duration: 0.22 }}
         >
           <motion.div
-            className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-ink-800/15 bg-[rgba(251,249,243,0.98)] shadow-[0_20px_60px_-20px_rgba(48,42,28,0.5)]"
+            className="museum-emp-scope flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-ink-800/15 bg-[rgba(251,249,243,0.98)] shadow-[0_20px_60px_-20px_rgba(48,42,28,0.5)]"
             initial={{ opacity: 0, y: 16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.99 }}
@@ -600,11 +600,11 @@ function PersonNode({
       <motion.button
         type="button"
         onClick={() => onSelect(person.id)}
-        className={`absolute flex items-center justify-center border px-1 font-display transition ${
+        className={`museum-emp-card absolute flex items-center justify-center border px-1 font-display transition ${
           person.isEmperor ? "bg-ink-50/95" : "border-dashed bg-ink-100/80"
         } ${
           isFocus
-            ? "border-2 border-cinnabar bg-[rgba(196,60,44,0.08)] shadow-[0_0_0_3px_rgba(196,60,44,0.22),0_4px_14px_rgba(196,60,44,0.2)]"
+            ? "museum-emp-card-active border-2 border-cinnabar bg-[rgba(196,60,44,0.08)] shadow-[0_0_0_3px_rgba(196,60,44,0.22),0_4px_14px_rgba(196,60,44,0.2)]"
             : inPath
               ? "border-ink-700/40"
               : "border-ink-800/15"
@@ -625,7 +625,7 @@ function PersonNode({
           style={{ background: isFocus ? "#c43c2c" : person.accent }}
         />
         <span
-          className={`truncate font-semibold ${
+          className={`museum-emp-title truncate font-semibold ${
             isFocus ? "text-cinnabar" : "text-ink-800"
           }`}
         >
@@ -709,11 +709,11 @@ function PersonNode({
         type="button"
         layout={false}
         onClick={() => onSelect(person.id)}
-        className={`absolute flex flex-col items-stretch border text-left transition-shadow ${
+        className={`museum-emp-card absolute flex flex-col items-stretch border text-left transition-shadow ${
           person.isEmperor ? "bg-ink-50/95" : "border-dashed bg-ink-100/70"
         } ${
           isFocus
-            ? "border-cinnabar bg-[rgba(255,248,244,0.98)]"
+            ? "museum-emp-card-active border-cinnabar bg-[rgba(255,248,244,0.98)]"
             : inPath
               ? "border-ink-700/40"
               : "border-ink-800/15"
@@ -746,7 +746,7 @@ function PersonNode({
               />
             )}
             <p
-              className={`truncate font-display font-bold ${
+              className={`museum-emp-title truncate font-display font-bold ${
                 isFocus ? "text-cinnabar" : "text-ink-900"
               }`}
               style={{ fontSize: Math.max(10, 12 * scale) }}
@@ -756,7 +756,7 @@ function PersonNode({
           </div>
           {person.templeName && (
             <p
-              className={`truncate ${isFocus ? "text-cinnabar/80" : "text-ink-500"}`}
+              className={`museum-emp-dd truncate ${isFocus ? "text-cinnabar/80" : "text-ink-500"}`}
               style={{ fontSize: Math.max(8, 10 * scale) }}
             >
               {person.templeName}
@@ -764,7 +764,7 @@ function PersonNode({
           )}
           {!person.isEmperor && (
             <p
-              className="truncate text-ink-400"
+              className="museum-emp-dt truncate text-ink-400"
               style={{ fontSize: Math.max(8, 9 * scale) }}
             >
               {person.posthumousName}
@@ -775,7 +775,7 @@ function PersonNode({
               {person.reigns.map((r) => (
                 <span
                   key={r.title}
-                  className={`border px-1 font-display ${
+                  className={`museum-emp-chip border px-1 font-display ${
                     isFocus
                       ? "border-cinnabar/35 bg-cinnabar/10 text-cinnabar"
                       : "border-ink-800/15 bg-ink-100/80 text-ink-700"
@@ -789,7 +789,7 @@ function PersonNode({
           )}
           {person.throneOrder != null && (
             <p
-              className={`mt-0.5 ${isFocus ? "text-cinnabar/70" : "text-ink-400"}`}
+              className={`museum-emp-dt mt-0.5 ${isFocus ? "text-cinnabar/70" : "text-ink-400"}`}
               style={{ fontSize: Math.max(7, 8 * scale) }}
             >
               第 {person.throneOrder} 任 · {reignTitlesLabel(person)}
@@ -813,7 +813,7 @@ function lightningPath(x1: number, y1: number, x2: number, y2: number) {
 
 function Legend() {
   return (
-    <div className="hidden flex-wrap items-center gap-3 text-[10px] text-ink-500 sm:flex">
+    <div className="museum-emp-dd hidden flex-wrap items-center gap-3 text-[10px] text-ink-500 sm:flex">
       <span className="inline-flex items-center gap-1">
         <span className="inline-block h-px w-4 bg-ink-800" />
         嫡长 / 直系

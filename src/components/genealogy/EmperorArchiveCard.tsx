@@ -24,7 +24,7 @@ export function EmperorArchiveCard({ emperorId }: EmperorArchiveCardProps) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-      className="flex max-h-[min(62vh,34rem)] flex-col bg-[rgba(251,249,243,0.42)] px-3 py-3 md:px-4 md:py-4"
+      className="museum-emp-surface flex max-h-[min(62vh,34rem)] flex-col bg-[rgba(251,249,243,0.42)] px-3 py-3 md:px-4 md:py-4"
     >
       <div className="flex shrink-0 gap-3 md:gap-4">
         <EmperorPortrait
@@ -63,7 +63,7 @@ export function EmperorArchiveCard({ emperorId }: EmperorArchiveCardProps) {
       </div>
 
       {emperorId === "yingzong" && (
-        <div className="mt-3 shrink-0 border border-cinnabar/20 bg-cinnabar/[0.04] px-3 py-2 text-xs leading-relaxed text-ink-600">
+        <div className="museum-emp-note museum-emp-body mt-3 shrink-0 border border-cinnabar/20 bg-cinnabar/[0.04] px-3 py-2 text-sm leading-relaxed text-ink-600">
           <span className="font-display font-medium text-cinnabar">
             一人双年号
           </span>
@@ -80,10 +80,10 @@ export function EmperorArchiveCard({ emperorId }: EmperorArchiveCardProps) {
       {events.length > 0 && (
         <div className="mt-4 flex min-h-0 flex-1 flex-col">
           <div className="flex shrink-0 items-baseline justify-between gap-2">
-            <p className="font-display text-[10px] tracking-[0.2em] text-ink-400">
+            <p className="museum-emp-dt font-display text-[10px] tracking-[0.2em] text-ink-400">
               在位相关事件
             </p>
-            <p className="text-[10px] tabular-nums text-ink-300">
+            <p className="museum-emp-dt text-[10px] tabular-nums text-ink-300">
               共 {events.length} 条
             </p>
           </div>
@@ -91,10 +91,12 @@ export function EmperorArchiveCard({ emperorId }: EmperorArchiveCardProps) {
             {events.map((ev) => (
               <li
                 key={ev.id}
-                className="flex flex-wrap items-baseline justify-between gap-2 border-b border-ink-800/5 pb-2 text-sm last:border-b-0"
+                className="museum-glass-rule flex flex-wrap items-baseline justify-between gap-2 border-b border-ink-800/5 pb-2 text-sm last:border-b-0"
               >
-                <span className="font-medium text-ink-800">{ev.title}</span>
-                <span className="text-xs tabular-nums text-ink-400">
+                <span className="museum-emp-title font-medium text-ink-800">
+                  {ev.title}
+                </span>
+                <span className="museum-emp-dd font-mono text-xs tabular-nums text-ink-400">
                   {ev.yearLabel}
                 </span>
                 <div className="flex w-full flex-wrap gap-1">
@@ -124,17 +126,23 @@ function NameBlock({
 }) {
   return (
     <div
-      className={`border px-2.5 py-2 ${
+      className={`museum-emp-card border px-2.5 py-2 ${
         emphasize
           ? "border-ink-800/12 bg-[rgba(251,249,243,0.55)]"
           : "border-ink-800/10"
       }`}
     >
-      <p className="text-[10px] tracking-[0.2em] text-ink-400">{label}</p>
-      <p className="mt-1 font-display text-lg font-bold tracking-wide text-ink-900">
+      <p className="museum-emp-dt font-mono text-[10px] tracking-[0.2em] text-ink-400">
+        {label}
+      </p>
+      <p className="museum-emp-title mt-1 font-serif text-lg font-bold tracking-wide text-ink-900">
         {value}
       </p>
-      {sub && <p className="mt-0.5 text-xs text-ink-500">{sub}</p>}
+      {sub && (
+        <p className="museum-emp-dd mt-0.5 font-mono text-xs text-ink-500">
+          {sub}
+        </p>
+      )}
     </div>
   );
 }

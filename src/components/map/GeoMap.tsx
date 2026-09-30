@@ -387,7 +387,7 @@ export function GeoMap({
       ctx.restore();
     }
 
-    // 外延
+    // 外延 / 羁縻：羽化晕染 + 虚线描边（影响力示意，非确定国界）
     const drawExtras = (list: ExtraFeat[], pathList: Path2D[], mul: number) => {
       if (mul <= 0.01) return;
       for (let i = 0; i < list.length; i++) {
@@ -396,57 +396,51 @@ export function GeoMap({
         const canGlow = e.region != null && isGlowRegion(e.region);
         const lit =
           canGlow && glow > 0.01 && glowRegion != null && glowRegion === e.region;
-        const fillColor = dark ? theme.core : e.fill;
-        const ambientGlow = dark && !lit;
+        const baseFill = dark
+          ? e.region === "maritime"
+            ? "#f0b429"
+            : "#2dd4bf"
+          : e.fill;
+        const fillAlpha = Math.min(0.22, 0.15 * mul * (lit ? 1.35 : 1));
+        const dashStroke = dark
+          ? lit
+            ? "rgba(45, 212, 191, 0.55)"
+            : e.region === "maritime"
+              ? "rgba(251, 191, 36, 0.4)"
+              : "rgba(45, 212, 191, 0.4)"
+          : lit
+            ? hexToRgba(e.fill, 0.55)
+            : hexToRgba(e.fill, 0.38);
 
+        ctx.save();
         if (lit) {
-          const lift = glow * 3.6;
-          ctx.save();
-          ctx.translate(0, -lift);
-          ctx.shadowColor = hexToRgba(fillColor, 0.5 + glow * 0.3);
-          ctx.shadowBlur = 8 + glow * 16;
-          ctx.fillStyle = hexToRgba(
-            fillColor,
-            Math.min(0.62, e.opacity * mul * (1.2 + glow * 0.6))
-          );
-          ctx.fill(path);
-          ctx.shadowBlur = 0;
-          ctx.shadowColor = "transparent";
-          ctx.strokeStyle = hexToRgba(fillColor, 0.58 + glow * 0.35);
-          ctx.lineWidth = 1.5 + glow * 0.9;
-          ctx.setLineDash([]);
-          ctx.stroke(path);
-          ctx.strokeStyle = dark
-            ? `rgba(45, 212, 191, ${0.25 + glow * 0.35})`
-            : `rgba(255, 252, 245, ${0.2 + glow * 0.28})`;
-          ctx.lineWidth = 1.1;
-          ctx.stroke(path);
-          ctx.restore();
-        } else {
-          if (ambientGlow) {
-            ctx.save();
-            ctx.shadowColor = "rgba(45, 212, 191, 0.22)";
-            ctx.shadowBlur = 12;
-            ctx.fillStyle = hexToRgba(fillColor, e.opacity * mul * 1.15);
-            ctx.fill(path);
-            ctx.shadowBlur = 0;
-            ctx.shadowColor = "transparent";
-            ctx.strokeStyle = hexToRgba(theme.boundaryStrong, 0.55 * mul);
-            ctx.lineWidth = 1.05;
-            ctx.setLineDash([3.2, 3.2]);
-            ctx.stroke(path);
-            ctx.setLineDash([]);
-            ctx.restore();
-          } else {
-            ctx.fillStyle = hexToRgba(e.fill, e.opacity * mul);
-            ctx.fill(path);
-            ctx.strokeStyle = hexToRgba("#2f554d", 0.45 * mul);
-            ctx.lineWidth = 1;
-            ctx.setLineDash([3.2, 3.2]);
-            ctx.stroke(path);
-            ctx.setLineDash([]);
-          }
+          ctx.translate(0, -glow * 2.4);
         }
+
+        // 外层羽化光晕
+        ctx.shadowColor = hexToRgba(baseFill, dark ? 0.35 : 0.28);
+        ctx.shadowBlur = lit ? 22 + glow * 10 : 18;
+        ctx.fillStyle = hexToRgba(baseFill, fillAlpha * 0.55);
+        ctx.fill(path);
+
+        // 内层低透明实填（仍保持极淡）
+        ctx.shadowBlur = lit ? 12 + glow * 6 : 8;
+        ctx.fillStyle = hexToRgba(baseFill, fillAlpha);
+        ctx.fill(path);
+
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = "transparent";
+
+        // 虚线边界：淡荧光 / 淡琥珀
+        ctx.setLineDash([4, 4]);
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.strokeStyle = dashStroke;
+        ctx.lineWidth = lit ? 1.35 : 1.05;
+        ctx.stroke(path);
+        ctx.setLineDash([]);
+
+        ctx.restore();
       }
     };
     drawExtras(
