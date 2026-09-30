@@ -204,10 +204,6 @@ export function TerritoryMapPanel({
           />
         )}
 
-        {/* 顶光 + 暗角：叠在 canvas 上，不拦截指针 */}
-        <div className="museum-spotlight" aria-hidden />
-        <div className="museum-vignette" aria-hidden />
-
         <SnapshotFloatCard
           isStage={isStage}
           label={snapshot.label}
@@ -217,13 +213,9 @@ export function TerritoryMapPanel({
           loading={loading}
         />
 
-        {/* 右上：展厅关灯 */}
-        {onToggleMuseumMode && (
-          <div
-            className={`absolute z-10 ${
-              isStage ? "right-3 top-3 md:right-5 md:top-4" : "right-3 top-3 md:right-4"
-            }`}
-          >
+        {/* 右上：展厅关灯（非舞台布局；舞台模式由页头按钮控制） */}
+        {!isStage && onToggleMuseumMode && (
+          <div className="absolute right-3 top-3 z-10 md:right-4">
             <button
               type="button"
               aria-label={museumMode ? "展厅开灯" : "展厅关灯"}
@@ -241,7 +233,7 @@ export function TerritoryMapPanel({
         <div
           className={`absolute z-10 flex max-w-[min(48%,420px)] flex-wrap justify-end gap-x-1.5 gap-y-1 rounded-full px-2.5 py-1.5 ${glassChrome} ${
             isStage
-              ? "right-3 top-16 md:right-5 md:top-[4.75rem]"
+              ? "right-3 top-14 md:right-5 md:top-16"
               : "right-14 top-3 md:right-[3.75rem] md:top-3.5"
           }`}
         >
@@ -315,7 +307,7 @@ export function TerritoryMapPanel({
         <div
           className={`absolute z-10 grid gap-2 ${
             isStage
-              ? "right-3 top-[9.5rem] md:right-5"
+              ? "right-3 top-[8.5rem] md:right-5"
               : "right-3 top-[5.25rem] md:right-4"
           }`}
         >

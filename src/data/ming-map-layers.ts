@@ -149,9 +149,11 @@ export const MAP_THEME_MUSEUM = {
   landMuted: "#10141c",
   boundary: "rgba(148, 163, 184, 0.22)",
   boundaryStrong: "rgba(45, 212, 191, 0.45)",
-  ink: "#e8e6df",
-  inkSoft: "#b8b4a8",
-  inkFaint: "#7a7880",
+  /** 辖区内地名：暖白 */
+  ink: "#FDFBF7",
+  inkSoft: "#FDFBF7",
+  /** 辖区外地名：暗蓝灰 */
+  inkFaint: "#64748b",
   hairline: "rgba(255,255,255,0.08)",
   hairlineStrong: "rgba(255,255,255,0.14)",
   core: "#2dd4bf",

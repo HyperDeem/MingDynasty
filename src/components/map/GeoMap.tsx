@@ -329,7 +329,7 @@ export function GeoMap({
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
 
-    // 省面
+    // 1) 省面底色（统一陆地色，先铺满）
     for (let i = 0; i < provinces.length; i++) {
       const p = provinces[i];
       const path = paths.provinces[i];
@@ -338,6 +338,24 @@ export function GeoMap({
       ctx.fillStyle =
         isHover && !isCore ? theme.landHover : theme.land;
       ctx.fill(path);
+    }
+
+    // 2) 同色描边封缝：盖住抗锯齿/亚像素接缝，避免背景透出
+    ctx.save();
+    ctx.lineJoin = "miter";
+    ctx.miterLimit = 2.5;
+    ctx.lineCap = "butt";
+    ctx.strokeStyle = theme.land;
+    ctx.lineWidth = 1.35;
+    for (const path of paths.provinces) ctx.stroke(path);
+    ctx.restore();
+
+    // 3) 核心疆域叠色
+    for (let i = 0; i < provinces.length; i++) {
+      const p = provinces[i];
+      const path = paths.provinces[i];
+      const isCore = coreSet.has(p.name);
+      const isHover = hover === p.name;
 
       if (hasPrev && prevSet.has(p.name)) {
         ctx.fillStyle = hexToRgba(theme.core, (1 - t) * (dark ? 0.38 : 0.32));
@@ -350,6 +368,23 @@ export function GeoMap({
         );
         ctx.fill(path);
       }
+    }
+
+    // 4) 核心区同色微封缝（半透明叠色接缝）
+    if (coreSet.size > 0) {
+      ctx.save();
+      ctx.lineJoin = "miter";
+      ctx.lineCap = "butt";
+      ctx.strokeStyle = hexToRgba(
+        theme.core,
+        (hasPrev ? t : 1) * (dark ? 0.38 : 0.32)
+      );
+      ctx.lineWidth = 1.1;
+      for (let i = 0; i < provinces.length; i++) {
+        if (!coreSet.has(provinces[i].name)) continue;
+        ctx.stroke(paths.provinces[i]);
+      }
+      ctx.restore();
     }
 
     // 外延
@@ -425,14 +460,21 @@ export function GeoMap({
       hasPrev ? Math.max(t, 0.05) : 1
     );
 
-    // 省界
-    ctx.strokeStyle = dark ? theme.boundary : "rgba(79, 84, 76, 0.28)";
-    ctx.lineWidth = 0.7;
+    // 5) 省界细线：单次描边，贴合无缝拼图效果
+    ctx.save();
+    ctx.lineJoin = "miter";
+    ctx.miterLimit = 2.5;
+    ctx.lineCap = "butt";
+    ctx.strokeStyle = dark ? theme.boundary : "rgba(79, 84, 76, 0.32)";
+    ctx.lineWidth = 0.65;
     for (const path of paths.provinces) ctx.stroke(path);
+    ctx.restore();
 
-    // 核心疆域边界：关灯时微光描边
+    // 核心疆域外轮廓（关灯时微光）
     if (dark) {
       ctx.save();
+      ctx.lineJoin = "miter";
+      ctx.lineCap = "butt";
       ctx.shadowColor = "rgba(45, 212, 191, 0.28)";
       ctx.shadowBlur = 12;
       ctx.strokeStyle = hexToRgba(
@@ -446,39 +488,79 @@ export function GeoMap({
       }
       ctx.restore();
     } else {
+      ctx.save();
+      ctx.lineJoin = "miter";
+      ctx.lineCap = "butt";
       ctx.strokeStyle = hexToRgba("#2f554d", hasPrev ? 0.3 + t * 0.35 : 0.55);
-      ctx.lineWidth = 1.1;
+      ctx.lineWidth = 1.05;
       for (let i = 0; i < provinces.length; i++) {
         if (!coreSet.has(provinces[i].name)) continue;
         ctx.stroke(paths.provinces[i]);
       }
+      ctx.restore();
     }
 
-    // 标签
+    // 标签：关灯时辖区内暖白+深墨描边，辖区外暗蓝灰虚化
+    const labelSerif =
+      '"Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif';
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font =
-      '500 10px "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif';
+    ctx.font = `500 10px ${labelSerif}`;
     for (const p of provinces) {
       if (!p.showLabel || !p.shortName) continue;
       const [x, y] = project(p.centroid[0], p.centroid[1], view);
       if (x < -40 || y < -20 || x > w + 40 || y > h + 20) continue;
-      ctx.lineWidth = 2.4;
-      ctx.strokeStyle = dark
-        ? "rgba(9, 10, 15, 0.85)"
-        : "rgba(248, 249, 245, 0.95)";
-      ctx.strokeText(p.shortName, x, y);
-      ctx.fillStyle = hexToRgba(theme.inkFaint, dark ? 0.9 : 0.8);
-      ctx.fillText(p.shortName, x, y);
+      const inCore = coreSet.has(p.name);
+
+      if (dark) {
+        if (inCore) {
+          ctx.lineJoin = "round";
+          ctx.miterLimit = 2;
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = "#041a18";
+          ctx.strokeText(p.shortName, x, y);
+          ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
+          ctx.shadowBlur = 3;
+          ctx.shadowOffsetY = 1;
+          ctx.fillStyle = "#FDFBF7";
+          ctx.fillText(p.shortName, x, y);
+          ctx.shadowColor = "transparent";
+          ctx.shadowBlur = 0;
+          ctx.shadowOffsetY = 0;
+        } else {
+          ctx.lineWidth = 0;
+          ctx.fillStyle = "#64748b";
+          ctx.fillText(p.shortName, x, y);
+        }
+      } else {
+        ctx.lineWidth = 2.4;
+        ctx.strokeStyle = "rgba(248, 249, 245, 0.95)";
+        ctx.strokeText(p.shortName, x, y);
+        ctx.fillStyle = hexToRgba(theme.inkFaint, 0.8);
+        ctx.fillText(p.shortName, x, y);
+      }
     }
 
-    ctx.font =
-      '500 10.5px "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif';
+    ctx.font = `500 10.5px ${labelSerif}`;
     for (const e of extrasRef.current) {
       if (!e.labelAt) continue;
       const [x, y] = project(e.labelAt[0], e.labelAt[1], view);
-      ctx.fillStyle = hexToRgba(theme.inkSoft, 0.75 * (hasPrev ? t : 1));
-      ctx.fillText(e.name, x, y);
+      if (dark) {
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "#041a18";
+        ctx.strokeText(e.name, x, y);
+        ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetY = 1;
+        ctx.fillStyle = hexToRgba("#FDFBF7", 0.92 * (hasPrev ? t : 1));
+        ctx.fillText(e.name, x, y);
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+      } else {
+        ctx.fillStyle = hexToRgba(theme.inkSoft, 0.75 * (hasPrev ? t : 1));
+        ctx.fillText(e.name, x, y);
+      }
     }
 
     for (const c of caps) {
@@ -506,17 +588,28 @@ export function GeoMap({
         ctx.fill();
         ctx.restore();
       }
-      ctx.font =
-        '600 11px "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif';
+      ctx.font = `600 11px ${labelSerif}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      ctx.lineWidth = 2.6;
-      ctx.strokeStyle = dark
-        ? "rgba(9, 10, 15, 0.9)"
-        : "rgba(248, 249, 245, 0.95)";
-      ctx.strokeText(c.name, x, y + 8);
-      ctx.fillStyle = theme.inkSoft;
-      ctx.fillText(c.name, x, y + 8);
+      if (dark) {
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = "#041a18";
+        ctx.strokeText(c.name, x, y + 8);
+        ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetY = 1;
+        ctx.fillStyle = "#FDFBF7";
+        ctx.fillText(c.name, x, y + 8);
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+      } else {
+        ctx.lineWidth = 2.6;
+        ctx.strokeStyle = "rgba(248, 249, 245, 0.95)";
+        ctx.strokeText(c.name, x, y + 8);
+        ctx.fillStyle = theme.inkSoft;
+        ctx.fillText(c.name, x, y + 8);
+      }
     }
   }, [getPaths]);
 
@@ -742,8 +835,8 @@ export function GeoMap({
               (f.properties as { name?: string })?.name ?? ""
             );
             const showLabel = LABEL_PROVINCES.has(name);
-            const simplified = simplifyGeometry(f.geometry, 4);
-            const rings = geometryToMercatorRings(simplified);
+            // 保留原始共享边界顶点，避免独立抽稀造成省界缝隙
+            const rings = geometryToMercatorRings(f.geometry);
             if (!rings.length) continue;
             list.push({
               name,
