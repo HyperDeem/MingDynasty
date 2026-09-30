@@ -367,7 +367,7 @@ export function GeoMap({
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.font =
-      '500 10px "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif';
+      '500 10px "Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif';
     for (const p of provinces) {
       if (!p.showLabel || !p.shortName) continue;
       const [x, y] = project(p.centroid[0], p.centroid[1], view);
@@ -379,7 +379,8 @@ export function GeoMap({
       ctx.fillText(p.shortName, x, y);
     }
 
-    ctx.font = '500 10.5px "Noto Serif SC", "Noto Sans SC", serif';
+    ctx.font =
+      '500 10.5px "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif';
     for (const e of extrasRef.current) {
       if (!e.labelAt) continue;
       const [x, y] = project(e.labelAt[0], e.labelAt[1], view);
@@ -400,7 +401,8 @@ export function GeoMap({
       ctx.lineWidth = 1.4;
       ctx.strokeStyle = MAP_THEME.paperRaised;
       ctx.stroke();
-      ctx.font = '600 11px "Noto Serif SC", "Noto Sans SC", serif';
+      ctx.font =
+        '600 11px "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif';
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       ctx.lineWidth = 2.6;

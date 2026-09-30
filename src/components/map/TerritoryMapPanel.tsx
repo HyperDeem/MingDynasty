@@ -94,12 +94,12 @@ export function TerritoryMapPanel({
       {!isStage && (
         <header className="flex flex-wrap items-end justify-between gap-3 border-b border-[#e3dcca] px-4 py-3 md:px-5">
           <div>
-            <p className="font-display text-[10px] tracking-[0.28em] text-[#b6584f]">
+            <p className="font-serif text-[10px] tracking-[0.28em] text-[#b6584f]">
               交互疆域
             </p>
-            <h3 className="mt-0.5 font-display text-lg font-bold text-[#222621]">
+            <h3 className="mt-0.5 font-serif text-lg font-bold tracking-[0.12em] text-[#222621]">
               {snapshot.label}
-              <span className="ml-2 text-sm font-normal tabular-nums text-[#898d80]">
+              <span className="ml-2 font-body text-sm font-normal tracking-normal tabular-nums text-[#898d80]">
                 约 {currentYear} 年
               </span>
             </h3>
@@ -110,7 +110,7 @@ export function TerritoryMapPanel({
           <div className="text-right text-[10px] text-[#898d80]">
             <p>拖拽平移 · 滚轮缩放 · 悬停识别</p>
             {hoverName && (
-              <p className="mt-0.5 font-display text-xs text-[#b6584f]">
+              <p className="mt-0.5 font-serif text-xs tracking-wide text-[#b6584f]">
                 {hoverName}
               </p>
             )}
@@ -146,16 +146,16 @@ export function TerritoryMapPanel({
         <div
           className={`pointer-events-none absolute z-10 w-[min(88vw,16.5rem)] rounded-md border border-[#e3dcca] bg-[rgba(251,249,243,0.92)] px-3 py-2.5 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-[8px] md:w-[18.5rem] ${
             isStage
-              ? "bottom-[5.75rem] left-3 md:bottom-[6.25rem] md:left-5"
+              ? "bottom-[9.5rem] left-3 md:bottom-[10rem] md:left-5"
               : "left-3 top-3 md:left-4 md:top-3.5"
           }`}
         >
           <header className="flex items-baseline justify-between gap-2">
             <div className="min-w-0">
-              <p className="font-display text-[9px] tracking-[0.28em] text-[#b6584f]">
+              <p className="font-serif text-[9px] tracking-[0.28em] text-[#b6584f]">
                 疆域快照
               </p>
-              <h3 className="mt-0.5 font-display text-base font-bold leading-tight tracking-wide text-[#222621] md:text-lg">
+              <h3 className="mt-1 font-serif text-base font-bold leading-tight tracking-[0.14em] text-[#222621] md:text-lg md:tracking-[0.16em]">
                 {snapshot.label}
               </h3>
             </div>
@@ -168,10 +168,10 @@ export function TerritoryMapPanel({
 
           {capitals.length > 0 && (
             <p className="mt-1.5 flex items-baseline gap-2 text-[11px] text-[#4f544c]">
-              <span className="shrink-0 font-display text-[9px] tracking-[0.2em] text-[#898d80]">
+              <span className="shrink-0 font-serif text-[9px] tracking-[0.2em] text-[#898d80]">
                 都城
               </span>
-              <span className="font-display text-[12px] font-semibold tracking-wide text-[#222621]">
+              <span className="font-serif text-[12px] font-semibold tracking-[0.1em] text-[#222621]">
                 {capitals.map((c: CapitalMarker) => c.name).join(" · ")}
               </span>
             </p>
@@ -182,7 +182,7 @@ export function TerritoryMapPanel({
           </p>
 
           {/* 固定占位，避免悬停省份名时卡片高度突变 */}
-          <p className="mt-1.5 min-h-[1.75rem] border-t border-dashed border-[#e3dcca] pt-1.5 font-display text-[11px] leading-none tracking-wide text-[#b6584f]">
+          <p className="mt-1.5 min-h-[1.75rem] border-t border-dashed border-[#e3dcca] pt-1.5 font-serif text-[11px] leading-none tracking-[0.12em] text-[#b6584f]">
             {hoverName ?? "\u00a0"}
           </p>
         </div>
@@ -198,7 +198,7 @@ export function TerritoryMapPanel({
           {legendItems.map((item) => (
             <span
               key={item.id}
-              className="inline-flex items-center gap-1.5 font-display text-[11px] text-[#4f544c]"
+              className="inline-flex items-center gap-1.5 font-serif text-[11px] tracking-wide text-[#4f544c]"
             >
               <i
                 className="inline-block h-2.5 w-2.5 rounded-full border-2 border-[rgba(251,250,246,0.9)]"
@@ -251,7 +251,7 @@ export function TerritoryMapPanel({
         {crossfade < 0.99 && previousCoreProvinces && (
           <div
             className={`pointer-events-none absolute left-3 right-14 z-10 h-0.5 overflow-hidden rounded bg-[#e3dcca] md:left-4 ${
-              isStage ? "bottom-[11.5rem]" : "top-[calc(100%-5.75rem)]"
+              isStage ? "bottom-[14.5rem]" : "top-[calc(100%-5.75rem)]"
             }`}
           >
             <div
@@ -264,7 +264,7 @@ export function TerritoryMapPanel({
         {/* 底部快照轴 */}
         <div
           className={`absolute left-1/2 z-20 w-[min(980px,calc(100%-28px))] -translate-x-1/2 rounded-[7px] border border-[#d4cab2] bg-[rgba(251,249,243,0.94)] px-3 py-2 shadow-[0_4px_18px_-8px_rgba(48,42,28,0.22)] backdrop-blur-[10px] ${
-            isStage ? "bottom-[5.75rem] md:bottom-[6.25rem]" : "bottom-3"
+            isStage ? "bottom-[9.5rem] md:bottom-[10rem]" : "bottom-3"
           }`}
         >
           <div className="flex items-end gap-1 overflow-x-auto pb-0.5">
@@ -281,7 +281,7 @@ export function TerritoryMapPanel({
                   disabled={!onSelectYear}
                 >
                   <span
-                    className={`font-display text-[12px] leading-none ${
+                    className={`font-serif text-[12px] leading-none tracking-[0.08em] ${
                       active
                         ? "font-semibold text-[#222621]"
                         : "text-[#898d80] group-hover:text-[#4f544c]"

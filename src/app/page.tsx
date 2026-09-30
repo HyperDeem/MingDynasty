@@ -119,13 +119,13 @@ export default function HomePage() {
           onSelectYear={handleSelectMapYear}
         />
 
-        {/* 轻量顶栏 */}
+        {/* 轻量顶栏 · 策展式衬线标题 */}
         <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start px-4 pt-3 md:px-6 md:pt-4">
-          <div className="pointer-events-auto rounded-md border border-ink-800/10 bg-[rgba(251,249,243,0.9)] px-3 py-2 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-md">
-            <p className="font-display text-[10px] tracking-[0.32em] text-ink-500">
+          <div className="pointer-events-auto rounded-md border border-ink-800/10 bg-[rgba(251,249,243,0.9)] px-3.5 py-2.5 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-md">
+            <p className="font-serif text-[9px] font-medium uppercase tracking-[0.42em] text-ink-500 md:text-[10px] md:tracking-[0.48em]">
               INTERACTIVE CHRONICLE
             </p>
-            <h1 className="font-display text-xl font-bold tracking-wide text-ink-900 md:text-2xl">
+            <h1 className="mt-1.5 font-serif text-xl font-bold tracking-[0.2em] text-ink-900 md:text-2xl md:tracking-[0.22em]">
               {DYNASTY_META.title}
             </h1>
           </div>
@@ -150,19 +150,18 @@ export default function HomePage() {
         />
       </div>
 
-      <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-40">
-        <Timeline
-          activeEventId={highlightEventId}
-          activeEmperorId={emperorId}
-          activePeriodId={periodId}
-          highlightYearFrom={territorySnapshot.yearFrom}
-          highlightYearTo={territorySnapshot.yearTo}
-          interactionLocked={emperorId != null}
-          onSelectEvent={handleSelectEvent}
-          onSelectEmperor={handleSelectEmperor}
-          onSelectEra={handleSelectEra}
-        />
-      </footer>
+      {/* 时间轴自带 fixed 底部居中悬浮，不再占满底栏 */}
+      <Timeline
+        activeEventId={highlightEventId}
+        activeEmperorId={emperorId}
+        activePeriodId={periodId}
+        highlightYearFrom={territorySnapshot.yearFrom}
+        highlightYearTo={territorySnapshot.yearTo}
+        interactionLocked={emperorId != null}
+        onSelectEvent={handleSelectEvent}
+        onSelectEmperor={handleSelectEmperor}
+        onSelectEra={handleSelectEra}
+      />
     </div>
   );
 }

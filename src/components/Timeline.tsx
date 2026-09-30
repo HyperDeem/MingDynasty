@@ -54,13 +54,6 @@ const TRACK = {
   overlapBonus: 20,
 } as const;
 
-/** 聚焦各朝时用固定高度，避免切朝时轨道忽高忽低牵动地图舞台 */
-const FOCUSED_TRACK_HEIGHT =
-  TRACK.base +
-  LAYOUT.maxRow * TRACK.perRow +
-  TRACK.longTitleBonus +
-  TRACK.overlapBonus;
-
 type LayoutItem = {
   event: ChronicleEvent;
   leftPercent: number;
@@ -80,10 +73,6 @@ type EraGroup = {
   stackRow: 0 | 1;
   events: ChronicleEvent[];
 };
-
-function bandKey(band: EmperorBand) {
-  return `${band.id}-${band.startYear}`;
-}
 
 function eventMatchesCategories(
   event: ChronicleEvent,
@@ -232,7 +221,6 @@ export function Timeline({
       if (!events?.length) continue;
       const bandStart = offset;
       const bandEnd = offset + size;
-      // 示意点锚定色带中点，绝不挪出色带
       const leftPercent = (bandStart + bandEnd) / 2;
       groups.push({
         periodId,
@@ -246,7 +234,6 @@ export function Timeline({
       });
     }
 
-    // 相邻过近时仅错落标签高度，不改动横向（保证点仍在色带内）
     const overlapThresh = 6.5;
     for (let i = 1; i < groups.length; i++) {
       if (groups[i]!.leftPercent - groups[i - 1]!.leftPercent < overlapThresh) {
@@ -414,7 +401,6 @@ export function Timeline({
       if (!expanded) return;
       const top = rootRef.current?.getBoundingClientRect().top;
       if (top == null) return;
-      // 只在变高（顶边上移）时更新，保留切模式前的较高顶边作邻近区
       if (
         lastExpandedTop.current == null ||
         top < lastExpandedTop.current
@@ -470,13 +456,16 @@ export function Timeline({
           ? "时间轴已暂停（请先关闭帝王简介）"
           : expanded
             ? "时间轴已展开"
-            : "时间轴，点击此浅色区域展开"
+            : "时间轴，点击展开"
       }
-      className={`relative overflow-hidden border-t border-ink-800/10 bg-[rgba(251,249,243,0.94)] backdrop-blur-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cinnabar/35 ${
+      className={[
+        "fixed bottom-6 left-1/2 z-40 w-[min(1120px,calc(100vw-1.5rem))] -translate-x-1/2",
+        "rounded-2xl border border-amber-500/20 bg-slate-950/80 shadow-2xl backdrop-blur-xl",
+        "outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40",
         interactionLocked
-          ? "pointer-events-none cursor-default opacity-55"
-          : "pointer-events-auto cursor-pointer"
-      }`}
+          ? "pointer-events-none cursor-default opacity-45"
+          : "pointer-events-auto cursor-pointer",
+      ].join(" ")}
       onMouseEnter={() => {
         if (!interactionLocked) handleEnter();
       }}
@@ -485,7 +474,6 @@ export function Timeline({
       }}
       onClick={(e) => {
         if (interactionLocked || expanded) return;
-        // 仅本浅色底区域内的点击可展开；色带按钮另有逻辑
         const t = e.target as HTMLElement;
         if (t.closest("button, a, input, select, textarea")) return;
         expandTimeline();
@@ -498,19 +486,24 @@ export function Timeline({
         }
       }}
       animate={{
-        // 不用位移/缩放做悬停提示，避免分割线附近进出自激抽搐
         boxShadow:
           !interactionLocked && !expanded && hinted
-            ? "0 -4px 18px -10px rgba(48,42,28,0.16)"
-            : "0 0 0 0 rgba(0,0,0,0)",
+            ? "0 0 0 1px rgba(251,191,36,0.28), 0 25px 50px -12px rgba(0,0,0,0.55)"
+            : "0 25px 50px -12px rgba(0,0,0,0.45)",
       }}
       transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
     >
+      {/* 顶缘金线 */}
+      <div
+        className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/35 to-transparent"
+        aria-hidden
+      />
+
       <motion.div
-        className="px-4 md:px-6"
+        className="relative px-3 md:px-4"
         animate={{
-          paddingTop: expanded ? 10 : 6,
-          paddingBottom: expanded ? 12 : 6,
+          paddingTop: expanded ? 12 : 10,
+          paddingBottom: expanded ? 12 : 10,
         }}
         transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
       >
@@ -524,17 +517,18 @@ export function Timeline({
               transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
               className="overflow-hidden"
             >
-              <div className="mb-2 flex min-h-10 flex-wrap items-center justify-between gap-2">
+              <div className="mb-2.5 flex min-h-9 flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-3">
-                  <p className="font-display text-[10px] tracking-[0.25em] text-ink-400">
+                  <p className="font-display text-[10px] tracking-[0.28em] text-amber-500/70">
                     核心主线
                   </p>
                   <CategoryFilter
                     visibility={categoryVisibility}
                     onToggle={toggleCategory}
+                    tone="dark"
                   />
                 </div>
-                <p className="font-display text-[10px] tracking-widest text-ink-300">
+                <p className="font-mono text-[10px] tracking-wide text-slate-500">
                   {focusedGroup
                     ? `${focusedGroup.eraLabel} · ${focusedGroup.events.length} 事 · ${yearHint}`
                     : `各朝缩略 · ${visibleCount} 事 · 点击年号展开`}
@@ -550,15 +544,15 @@ export function Timeline({
                 onMouseLeave={scheduleClearEraFocus}
               >
                 <div
-                  className="pointer-events-none absolute bottom-4 left-0 right-0 h-px bg-gradient-to-r from-cinnabar/35 via-ink-400/25 to-ink-300/20"
+                  className="pointer-events-none absolute bottom-4 left-0 right-0 h-px bg-gradient-to-r from-amber-500/20 via-slate-500/30 to-amber-500/20"
                   aria-hidden
                 />
-                <span className="pointer-events-none absolute bottom-0 left-0 text-[9px] leading-none tabular-nums text-ink-300">
+                <span className="pointer-events-none absolute bottom-0 left-0 font-mono text-[9px] leading-none tabular-nums text-slate-500">
                   {focusedGroup
                     ? focusedGroup.events[0]?.year ?? 1368
                     : 1368}
                 </span>
-                <span className="pointer-events-none absolute bottom-0 right-0 text-[9px] leading-none tabular-nums text-ink-300">
+                <span className="pointer-events-none absolute bottom-0 right-0 font-mono text-[9px] leading-none tabular-nums text-slate-500">
                   {focusedGroup
                     ? focusedGroup.events[focusedGroup.events.length - 1]
                         ?.year ?? 1644
@@ -567,7 +561,7 @@ export function Timeline({
 
                 <div className="absolute inset-x-0 top-0 bottom-4">
                   {visibleCount === 0 ? (
-                    <p className="absolute inset-0 flex items-center justify-center text-[11px] text-ink-400">
+                    <p className="absolute inset-0 flex items-center justify-center text-[11px] text-slate-500">
                       请至少开启一类事件筛选
                     </p>
                   ) : (
@@ -594,6 +588,7 @@ export function Timeline({
                                   labelRow={labelRow}
                                   isActive={activeEventId === event.id}
                                   onSelect={onSelectEvent}
+                                  tone="dark"
                                 />
                               )
                             )}
@@ -627,6 +622,7 @@ export function Timeline({
                                 accent={group.accent}
                                 isActive={hasActive}
                                 onSelect={() => focusEra(group.periodId)}
+                                tone="dark"
                               />
                             );
                           })}
@@ -640,13 +636,8 @@ export function Timeline({
           )}
         </AnimatePresence>
 
-        <div
-          className={
-            !expanded && hinted
-              ? "brightness-[1.03] saturate-[1.06] transition-[filter] duration-300"
-              : "transition-[filter] duration-300"
-          }
-        >
+        {/* 年号轨道：溢出可见，便于 tooltip 上浮 */}
+        <div className="relative overflow-visible">
           <EmperorStrip
             layouts={bandLayouts}
             compact={!expanded}
@@ -666,14 +657,16 @@ export function Timeline({
 
         {!expanded && (
           <motion.p
-            className="pointer-events-none mt-1 text-center text-[9px] tracking-wider"
+            className="pointer-events-none mt-2 text-center font-display text-[9px]"
             animate={{
-              color: hinted ? "rgba(196, 60, 44, 0.85)" : "rgba(143, 133, 112, 1)",
-              letterSpacing: hinted ? "0.22em" : "0.12em",
+              color: hinted
+                ? "rgba(251, 191, 36, 0.85)"
+                : "rgba(148, 163, 184, 0.75)",
+              letterSpacing: hinted ? "0.28em" : "0.18em",
             }}
             transition={{ duration: 0.28 }}
           >
-            {hinted ? "点击展开时间轴" : "朝代时间轴"}
+            {hinted ? "点击展开时间轴" : "明朝纪年 · 1368–1644"}
           </motion.p>
         )}
       </motion.div>

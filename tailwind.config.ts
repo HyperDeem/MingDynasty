@@ -33,8 +33,31 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ["var(--font-display)", "Songti SC", "SimSun", "serif"],
-        body: ["var(--font-body)", "Noto Sans SC", "PingFang SC", "sans-serif"],
+        display: [
+          "var(--font-display)",
+          "Source Han Serif SC",
+          "Noto Serif SC",
+          "Songti SC",
+          "STSong",
+          "SimSun",
+          "serif",
+        ],
+        serif: [
+          "var(--font-display)",
+          "Source Han Serif SC",
+          "Noto Serif SC",
+          "Songti SC",
+          "STSong",
+          "SimSun",
+          "serif",
+        ],
+        body: [
+          "var(--font-body)",
+          "Noto Sans SC",
+          "PingFang SC",
+          "Microsoft YaHei",
+          "sans-serif",
+        ],
       },
       keyframes: {
         "fade-slide-in": {

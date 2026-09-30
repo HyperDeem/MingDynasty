@@ -39,10 +39,16 @@ export const DEFAULT_CATEGORY_VISIBILITY: CategoryVisibility = {
 interface CategoryFilterProps {
   visibility: CategoryVisibility;
   onToggle: (category: EventCategory) => void;
+  tone?: "light" | "dark";
 }
 
 /** 核心主线四大类开关：军事 / 政治 / 文化 / 对外 */
-export function CategoryFilter({ visibility, onToggle }: CategoryFilterProps) {
+export function CategoryFilter({
+  visibility,
+  onToggle,
+  tone = "light",
+}: CategoryFilterProps) {
+  const dark = tone === "dark";
   return (
     <div
       className="flex flex-wrap gap-1.5"
@@ -59,9 +65,13 @@ export function CategoryFilter({ visibility, onToggle }: CategoryFilterProps) {
             title={on ? `隐藏${meta.label}` : `显示${meta.label}`}
             onClick={() => onToggle(meta.id)}
             className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] transition ${
-              on
-                ? `${meta.border} ${meta.bg} ${meta.text} shadow-[0_1px_0_rgba(48,42,28,0.04)]`
-                : "border-ink-800/10 bg-ink-800/[0.03] text-ink-400 opacity-70 hover:opacity-90"
+              dark
+                ? on
+                  ? "border-amber-500/30 bg-amber-500/10 text-amber-100"
+                  : "border-white/10 bg-white/[0.04] text-slate-500 opacity-75 hover:opacity-100"
+                : on
+                  ? `${meta.border} ${meta.bg} ${meta.text} shadow-[0_1px_0_rgba(48,42,28,0.04)]`
+                  : "border-ink-800/10 bg-ink-800/[0.03] text-ink-400 opacity-70 hover:opacity-90"
             }`}
           >
             <span

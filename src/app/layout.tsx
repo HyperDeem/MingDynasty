@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import { Noto_Sans_SC, Noto_Serif_SC } from "next/font/google";
 import "./globals.css";
 
+/** 思源宋体（Noto Serif SC = Source Han Serif SC），展览标题 / 年号 / 地名 */
 const display = Noto_Serif_SC({
   subsets: ["latin"],
-  weight: ["500", "700", "900"],
+  weight: ["400", "500", "700", "900"],
   variable: "--font-display",
   display: "swap",
+  // 关闭近似无衬线 fallback，缺字时落入 Songti/SimSun 真衬线
+  adjustFontFallback: false,
 });
 
 const body = Noto_Sans_SC({
@@ -14,6 +17,7 @@ const body = Noto_Sans_SC({
   weight: ["400", "500", "700"],
   variable: "--font-body",
   display: "swap",
+  adjustFontFallback: false,
 });
 
 export const metadata: Metadata = {

@@ -15,6 +15,7 @@ interface EraClusterProps {
   isActive?: boolean;
   dimmed?: boolean;
   onSelect: () => void;
+  tone?: "light" | "dark";
 }
 
 /**
@@ -31,7 +32,9 @@ export function EraCluster({
   isActive = false,
   dimmed = false,
   onSelect,
+  tone = "light",
 }: EraClusterProps) {
+  const dark = tone === "dark";
   // 示意点限制在色带内（相对整轴百分比）
   const dotLeft = Math.min(bandEnd - 0.15, Math.max(bandStart + 0.15, leftPercent));
 
@@ -63,25 +66,40 @@ export function EraCluster({
         aria-label={`${eraLabel}时期 ${count} 条事件，点击展开`}
       >
         <span
-          className={`flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 font-display text-[10px] shadow-[0_1px_2px_rgba(48,42,28,0.08)] transition md:gap-1.5 md:px-2.5 md:py-1 md:text-[11px] ${
-            isActive
-              ? "border-cinnabar/40 bg-cinnabar/10 text-cinnabar"
-              : "border-ink-800/15 bg-[rgba(251,249,243,0.95)] text-ink-700 hover:border-ink-800/25"
+          className={`flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 font-display text-[10px] transition md:gap-1.5 md:px-2.5 md:py-1 md:text-[11px] ${
+            dark
+              ? isActive
+                ? "border-amber-400/45 bg-amber-500/15 text-amber-200 shadow-[0_0_12px_rgba(251,191,36,0.2)]"
+                : "border-white/10 bg-slate-900/80 text-slate-200 hover:border-amber-500/30"
+              : isActive
+                ? "border-cinnabar/40 bg-cinnabar/10 text-cinnabar shadow-[0_1px_2px_rgba(48,42,28,0.08)]"
+                : "border-ink-800/15 bg-[rgba(251,249,243,0.95)] text-ink-700 shadow-[0_1px_2px_rgba(48,42,28,0.08)] hover:border-ink-800/25"
           }`}
         >
           {eraLabel}
-          <span className="tabular-nums text-ink-400">· {count}</span>
+          <span
+            className={`tabular-nums ${
+              dark ? "text-slate-500" : "text-ink-400"
+            }`}
+          >
+            · {count}
+          </span>
         </span>
 
-        {/* 示意点：严格落在该朝色带范围内 */}
         <span
-          className={`block h-2 w-2 shrink-0 rounded-full border-2 border-[rgba(247,241,232,0.95)] ${
-            isActive ? "bg-cinnabar" : ""
-          }`}
+          className={`block h-2 w-2 shrink-0 rounded-full border-2 ${
+            dark ? "border-slate-800" : "border-[rgba(247,241,232,0.95)]"
+          } ${isActive ? (dark ? "bg-amber-400" : "bg-cinnabar") : ""}`}
           style={
             isActive
               ? undefined
-              : { backgroundColor: accent ?? "rgba(196, 60, 44, 0.8)" }
+              : {
+                  backgroundColor:
+                    accent ??
+                    (dark
+                      ? "rgba(251, 191, 36, 0.7)"
+                      : "rgba(196, 60, 44, 0.8)"),
+                }
           }
           aria-hidden
         />
