@@ -121,7 +121,7 @@ export default function HomePage() {
 
         {/* 轻量顶栏 · 策展式衬线标题 */}
         <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start px-4 pt-3 md:px-6 md:pt-4">
-          <div className="pointer-events-auto rounded-md border border-ink-800/10 bg-[rgba(251,249,243,0.9)] px-3.5 py-2.5 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-md">
+          <div className="pointer-events-auto rounded-md border border-amber-900/10 bg-amber-50/50 px-3.5 py-2.5 shadow-[0_1px_2px_rgba(48,42,28,0.05)] backdrop-blur-md">
             <p className="font-serif text-[9px] font-medium uppercase tracking-[0.42em] text-ink-500 md:text-[10px] md:tracking-[0.48em]">
               INTERACTIVE CHRONICLE
             </p>

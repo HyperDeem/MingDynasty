@@ -4,8 +4,9 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { useMingTerritory } from "@/hooks/useMingTerritory";
 import type { TerritoryData } from "@/data/ming-dynasty";
-import { REGION_STYLE, type CapitalMarker } from "@/data/ming-map-layers";
+import { REGION_STYLE } from "@/data/ming-map-layers";
 import type { GeoMapApi } from "@/components/map/GeoMap";
+import { SnapshotFloatCard } from "@/components/map/SnapshotFloatCard";
 import {
   MING_TERRITORY_SNAPSHOTS,
   type MingTerritoryRegionId,
@@ -142,54 +143,18 @@ export function TerritoryMapPanel({
           />
         )}
 
-        {/* 疆域快照：舞台模式抬高，避开底部浮层时间轴；固定尺寸避免切期跳动 */}
-        <div
-          className={`pointer-events-none absolute z-10 flex h-[12.75rem] w-[min(88vw,16.5rem)] flex-col rounded-md border border-[#e3dcca] bg-[rgba(251,249,243,0.92)] px-3 py-2.5 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-[8px] md:h-[13.5rem] md:w-[18.5rem] ${
-            isStage
-              ? "bottom-[9.5rem] left-3 md:bottom-[10rem] md:left-5"
-              : "left-3 top-3 md:left-4 md:top-3.5"
-          }`}
-        >
-          <header className="flex min-h-[2.85rem] shrink-0 items-baseline justify-between gap-2">
-            <div className="min-w-0">
-              <p className="font-serif text-[9px] tracking-[0.28em] text-[#b6584f]">
-                疆域快照
-              </p>
-              <h3 className="mt-1 truncate font-serif text-base font-bold leading-tight tracking-[0.14em] text-[#222621] md:text-lg md:tracking-[0.16em]">
-                {snapshot.label}
-              </h3>
-            </div>
-            {loading && (
-              <span className="shrink-0 text-[10px] text-[#898d80]">
-                切换中…
-              </span>
-            )}
-          </header>
-
-          <p className="mt-1.5 flex min-h-[1.25rem] shrink-0 items-baseline gap-2 text-[11px] text-[#4f544c]">
-            <span className="shrink-0 font-serif text-[9px] tracking-[0.2em] text-[#898d80]">
-              都城
-            </span>
-            <span className="truncate font-serif text-[12px] font-semibold tracking-[0.1em] text-[#222621]">
-              {capitals.length > 0
-                ? capitals.map((c: CapitalMarker) => c.name).join(" · ")
-                : "—"}
-            </span>
-          </p>
-
-          <p className="mt-1.5 line-clamp-4 min-h-[4.125rem] flex-1 overflow-hidden text-[10px] leading-[1.65] tracking-wide text-[#4f544c] md:min-h-[4.675rem] md:text-[11px] md:leading-[1.7]">
-            {snapshot.description}
-          </p>
-
-          {/* 固定占位，避免悬停省份名时卡片高度突变 */}
-          <p className="mt-1.5 min-h-[1.75rem] shrink-0 border-t border-dashed border-[#e3dcca] pt-1.5 font-serif text-[11px] leading-none tracking-[0.12em] text-[#b6584f]">
-            {hoverName ?? "\u00a0"}
-          </p>
-        </div>
+        <SnapshotFloatCard
+          isStage={isStage}
+          label={snapshot.label}
+          description={snapshot.description}
+          capitals={capitals}
+          hoverName={hoverName}
+          loading={loading}
+        />
 
         {/* 图例 */}
         <div
-          className={`pointer-events-none absolute z-10 flex max-w-[min(48%,420px)] flex-wrap justify-end gap-x-2.5 gap-y-1 rounded-[7px] border border-[#e3dcca] bg-[rgba(251,249,243,0.88)] px-2.5 py-2 shadow-[0_1px_2px_rgba(48,42,28,0.06)] backdrop-blur-[8px] ${
+          className={`pointer-events-none absolute z-10 flex max-w-[min(48%,420px)] flex-wrap justify-end gap-x-2.5 gap-y-1 rounded-full border border-amber-900/10 bg-amber-50/50 px-3 py-1.5 shadow-[0_1px_2px_rgba(48,42,28,0.05)] backdrop-blur-md ${
             isStage
               ? "right-3 top-16 md:right-5 md:top-[4.75rem]"
               : "right-3 top-3 md:right-4 md:top-3.5"
@@ -201,7 +166,7 @@ export function TerritoryMapPanel({
               className="inline-flex items-center gap-1.5 font-serif text-[11px] tracking-wide text-[#4f544c]"
             >
               <i
-                className="inline-block h-2.5 w-2.5 rounded-full border-2 border-[rgba(251,250,246,0.9)]"
+                className="inline-block h-2.5 w-2.5 rounded-full border border-amber-900/15"
                 style={{
                   background: item.color,
                   boxShadow: `0 0 0 1px ${item.color}`,
@@ -212,9 +177,9 @@ export function TerritoryMapPanel({
           ))}
         </div>
 
-        {/* 缩放 */}
+        {/* 缩放：细线圆环，统一设计语言 */}
         <div
-          className={`absolute z-10 grid gap-[5px] ${
+          className={`absolute z-10 grid gap-2 ${
             isStage
               ? "right-3 top-[9.5rem] md:right-5"
               : "right-3 top-[5.25rem] md:right-4"
@@ -241,7 +206,7 @@ export function TerritoryMapPanel({
               aria-label={btn.label}
               title={btn.label}
               onClick={btn.action}
-              className="grid h-8 w-8 place-items-center rounded-md border border-[#d4cab2] bg-[rgba(251,249,243,0.92)] text-[17px] leading-none text-[#4f544c] shadow-[0_1px_2px_rgba(48,42,28,0.06)] transition hover:border-[#6f9a8e] hover:text-[#2f554d]"
+              className="grid h-9 w-9 place-items-center rounded-full border border-amber-900/25 bg-amber-50/40 text-[15px] leading-none text-[#4f544c] backdrop-blur-md transition hover:border-amber-900/45 hover:bg-amber-50/65 hover:text-[#2f554d]"
             >
               {btn.symbol}
             </button>
@@ -250,7 +215,7 @@ export function TerritoryMapPanel({
 
         {/* 底部快照轴 */}
         <div
-          className={`absolute left-1/2 z-20 w-[min(980px,calc(100%-28px))] -translate-x-1/2 rounded-[7px] border border-[#d4cab2] bg-[rgba(251,249,243,0.94)] px-3 py-2 shadow-[0_4px_18px_-8px_rgba(48,42,28,0.22)] backdrop-blur-[10px] ${
+          className={`absolute left-1/2 z-20 w-[min(980px,calc(100%-28px))] -translate-x-1/2 rounded-[7px] border border-amber-900/10 bg-amber-50/50 px-3 py-2 shadow-[0_4px_18px_-8px_rgba(48,42,28,0.18)] backdrop-blur-md ${
             isStage ? "bottom-[9.5rem] md:bottom-[10rem]" : "bottom-3"
           }`}
         >
