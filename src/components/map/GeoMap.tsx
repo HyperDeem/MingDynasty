@@ -11,10 +11,12 @@ import {
 import type { Feature, FeatureCollection, Geometry } from "geojson";
 import {
   MAP_THEME,
+  MAP_THEME_MUSEUM,
   LABEL_PROVINCES,
   shortProvinceLabel,
   isGlowRegion,
   type CapitalMarker,
+  type MapThemeColors,
 } from "@/data/ming-map-layers";
 import {
   clampViewToContent,
@@ -48,6 +50,8 @@ export interface GeoMapProps {
   crossfade?: number;
   /** 由图例等外部驱动的区域高亮（jiaozhi / nurgan / northwest / maritime…） */
   highlightRegion?: string | null;
+  /** 展厅关灯：深色陆地 + 疆域微光 */
+  museumMode?: boolean;
   className?: string;
   onFeatureHover?: (
     name: string | null,
@@ -210,6 +214,7 @@ export function GeoMap({
   capitals = [],
   crossfade = 1,
   highlightRegion = null,
+  museumMode = false,
   className,
   onFeatureHover,
   onReady,
@@ -238,6 +243,7 @@ export function GeoMap({
     capitals,
     crossfade,
     highlightRegion,
+    museumMode,
   });
   const hoverCbRef = useRef(onFeatureHover);
   const readyCbRef = useRef(onReady);
@@ -259,6 +265,7 @@ export function GeoMap({
     capitals,
     crossfade,
     highlightRegion,
+    museumMode,
   };
   hoverCbRef.current = onFeatureHover;
   readyCbRef.current = onReady;
@@ -303,7 +310,9 @@ export function GeoMap({
       previousCoreProvinces: prevCore,
       capitals: caps,
       crossfade: tRaw,
+      museumMode: dark,
     } = propsRef.current;
+    const theme: MapThemeColors = dark ? MAP_THEME_MUSEUM : MAP_THEME;
     const t = Math.min(1, Math.max(0, tRaw));
     const hasPrev = Boolean(prevCore?.length || prevExtrasRef.current.length);
     const coreSet = new Set(core);
@@ -327,17 +336,17 @@ export function GeoMap({
       const isCore = coreSet.has(p.name);
       const isHover = hover === p.name;
       ctx.fillStyle =
-        isHover && !isCore ? MAP_THEME.landHover : MAP_THEME.land;
+        isHover && !isCore ? theme.landHover : theme.land;
       ctx.fill(path);
 
       if (hasPrev && prevSet.has(p.name)) {
-        ctx.fillStyle = hexToRgba(MAP_THEME.core, (1 - t) * 0.32);
+        ctx.fillStyle = hexToRgba(theme.core, (1 - t) * (dark ? 0.38 : 0.32));
         ctx.fill(path);
       }
       if (isCore) {
         ctx.fillStyle = hexToRgba(
-          MAP_THEME.core,
-          (hasPrev ? t : 1) * (isHover ? 0.4 : 0.32)
+          theme.core,
+          (hasPrev ? t : 1) * (isHover ? (dark ? 0.48 : 0.4) : dark ? 0.38 : 0.32)
         );
         ctx.fill(path);
       }
@@ -352,37 +361,56 @@ export function GeoMap({
         const canGlow = e.region != null && isGlowRegion(e.region);
         const lit =
           canGlow && glow > 0.01 && glowRegion != null && glowRegion === e.region;
+        const fillColor = dark ? theme.core : e.fill;
+        const ambientGlow = dark && !lit;
 
         if (lit) {
           const lift = glow * 3.6;
           ctx.save();
           ctx.translate(0, -lift);
-          ctx.shadowColor = hexToRgba(e.fill, 0.5 + glow * 0.3);
+          ctx.shadowColor = hexToRgba(fillColor, 0.5 + glow * 0.3);
           ctx.shadowBlur = 8 + glow * 16;
           ctx.fillStyle = hexToRgba(
-            e.fill,
+            fillColor,
             Math.min(0.62, e.opacity * mul * (1.2 + glow * 0.6))
           );
           ctx.fill(path);
           ctx.shadowBlur = 0;
           ctx.shadowColor = "transparent";
-          ctx.strokeStyle = hexToRgba(e.fill, 0.58 + glow * 0.35);
+          ctx.strokeStyle = hexToRgba(fillColor, 0.58 + glow * 0.35);
           ctx.lineWidth = 1.5 + glow * 0.9;
           ctx.setLineDash([]);
           ctx.stroke(path);
-          // 内缘高光，增强“抬升”
-          ctx.strokeStyle = `rgba(255, 252, 245, ${0.2 + glow * 0.28})`;
+          ctx.strokeStyle = dark
+            ? `rgba(45, 212, 191, ${0.25 + glow * 0.35})`
+            : `rgba(255, 252, 245, ${0.2 + glow * 0.28})`;
           ctx.lineWidth = 1.1;
           ctx.stroke(path);
           ctx.restore();
         } else {
-          ctx.fillStyle = hexToRgba(e.fill, e.opacity * mul);
-          ctx.fill(path);
-          ctx.strokeStyle = hexToRgba("#2f554d", 0.45 * mul);
-          ctx.lineWidth = 1;
-          ctx.setLineDash([3.2, 3.2]);
-          ctx.stroke(path);
-          ctx.setLineDash([]);
+          if (ambientGlow) {
+            ctx.save();
+            ctx.shadowColor = "rgba(45, 212, 191, 0.22)";
+            ctx.shadowBlur = 12;
+            ctx.fillStyle = hexToRgba(fillColor, e.opacity * mul * 1.15);
+            ctx.fill(path);
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = "transparent";
+            ctx.strokeStyle = hexToRgba(theme.boundaryStrong, 0.55 * mul);
+            ctx.lineWidth = 1.05;
+            ctx.setLineDash([3.2, 3.2]);
+            ctx.stroke(path);
+            ctx.setLineDash([]);
+            ctx.restore();
+          } else {
+            ctx.fillStyle = hexToRgba(e.fill, e.opacity * mul);
+            ctx.fill(path);
+            ctx.strokeStyle = hexToRgba("#2f554d", 0.45 * mul);
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3.2, 3.2]);
+            ctx.stroke(path);
+            ctx.setLineDash([]);
+          }
         }
       }
     };
@@ -398,15 +426,32 @@ export function GeoMap({
     );
 
     // 省界
-    ctx.strokeStyle = "rgba(79, 84, 76, 0.28)";
+    ctx.strokeStyle = dark ? theme.boundary : "rgba(79, 84, 76, 0.28)";
     ctx.lineWidth = 0.7;
     for (const path of paths.provinces) ctx.stroke(path);
 
-    ctx.strokeStyle = hexToRgba("#2f554d", hasPrev ? 0.3 + t * 0.35 : 0.55);
-    ctx.lineWidth = 1.1;
-    for (let i = 0; i < provinces.length; i++) {
-      if (!coreSet.has(provinces[i].name)) continue;
-      ctx.stroke(paths.provinces[i]);
+    // 核心疆域边界：关灯时微光描边
+    if (dark) {
+      ctx.save();
+      ctx.shadowColor = "rgba(45, 212, 191, 0.28)";
+      ctx.shadowBlur = 12;
+      ctx.strokeStyle = hexToRgba(
+        theme.boundaryStrong,
+        hasPrev ? 0.35 + t * 0.4 : 0.7
+      );
+      ctx.lineWidth = 1.25;
+      for (let i = 0; i < provinces.length; i++) {
+        if (!coreSet.has(provinces[i].name)) continue;
+        ctx.stroke(paths.provinces[i]);
+      }
+      ctx.restore();
+    } else {
+      ctx.strokeStyle = hexToRgba("#2f554d", hasPrev ? 0.3 + t * 0.35 : 0.55);
+      ctx.lineWidth = 1.1;
+      for (let i = 0; i < provinces.length; i++) {
+        if (!coreSet.has(provinces[i].name)) continue;
+        ctx.stroke(paths.provinces[i]);
+      }
     }
 
     // 标签
@@ -419,9 +464,11 @@ export function GeoMap({
       const [x, y] = project(p.centroid[0], p.centroid[1], view);
       if (x < -40 || y < -20 || x > w + 40 || y > h + 20) continue;
       ctx.lineWidth = 2.4;
-      ctx.strokeStyle = "rgba(248, 249, 245, 0.95)";
+      ctx.strokeStyle = dark
+        ? "rgba(9, 10, 15, 0.85)"
+        : "rgba(248, 249, 245, 0.95)";
       ctx.strokeText(p.shortName, x, y);
-      ctx.fillStyle = hexToRgba(MAP_THEME.inkFaint, 0.8);
+      ctx.fillStyle = hexToRgba(theme.inkFaint, dark ? 0.9 : 0.8);
       ctx.fillText(p.shortName, x, y);
     }
 
@@ -430,7 +477,7 @@ export function GeoMap({
     for (const e of extrasRef.current) {
       if (!e.labelAt) continue;
       const [x, y] = project(e.labelAt[0], e.labelAt[1], view);
-      ctx.fillStyle = hexToRgba(MAP_THEME.inkSoft, 0.75 * (hasPrev ? t : 1));
+      ctx.fillStyle = hexToRgba(theme.inkSoft, 0.75 * (hasPrev ? t : 1));
       ctx.fillText(e.name, x, y);
     }
 
@@ -438,23 +485,37 @@ export function GeoMap({
       const [x, y] = project(c.coordinates[0], c.coordinates[1], view);
       ctx.beginPath();
       ctx.arc(x, y, 6.5, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(251, 249, 243, 0.95)";
+      ctx.fillStyle = dark
+        ? "rgba(15, 23, 42, 0.92)"
+        : "rgba(251, 249, 243, 0.95)";
       ctx.fill();
       ctx.beginPath();
       ctx.arc(x, y, 3.4, 0, Math.PI * 2);
-      ctx.fillStyle = MAP_THEME.capital;
+      ctx.fillStyle = theme.capital;
       ctx.fill();
       ctx.lineWidth = 1.4;
-      ctx.strokeStyle = MAP_THEME.paperRaised;
+      ctx.strokeStyle = theme.paperRaised;
       ctx.stroke();
+      if (dark) {
+        ctx.save();
+        ctx.shadowColor = "rgba(240, 180, 41, 0.45)";
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(x, y, 3.4, 0, Math.PI * 2);
+        ctx.fillStyle = theme.capital;
+        ctx.fill();
+        ctx.restore();
+      }
       ctx.font =
         '600 11px "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif';
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       ctx.lineWidth = 2.6;
-      ctx.strokeStyle = "rgba(248, 249, 245, 0.95)";
+      ctx.strokeStyle = dark
+        ? "rgba(9, 10, 15, 0.9)"
+        : "rgba(248, 249, 245, 0.95)";
       ctx.strokeText(c.name, x, y + 8);
-      ctx.fillStyle = MAP_THEME.inkSoft;
+      ctx.fillStyle = theme.inkSoft;
       ctx.fillText(c.name, x, y + 8);
     }
   }, [getPaths]);
@@ -788,6 +849,7 @@ export function GeoMap({
     previousExtras,
     capitals,
     crossfade,
+    museumMode,
     paint,
   ]);
 
@@ -990,13 +1052,31 @@ export function GeoMap({
         className="territory-render-canvas absolute left-0 top-0 touch-none"
       />
       {status === "loading" && (
-        <div className="pointer-events-none absolute inset-0 z-[1] flex flex-col items-center justify-center gap-2 bg-[rgba(248,249,245,0.55)] text-[#898d80]">
-          <span className="h-7 w-7 animate-spin rounded-full border-2 border-[#d4cab2] border-t-[#3f6f64]" />
+        <div
+          className={`pointer-events-none absolute inset-0 z-[1] flex flex-col items-center justify-center gap-2 transition-colors duration-700 ${
+            museumMode
+              ? "bg-[rgba(9,10,15,0.55)] text-slate-400"
+              : "bg-[rgba(248,249,245,0.55)] text-[#898d80]"
+          }`}
+        >
+          <span
+            className={`h-7 w-7 animate-spin rounded-full border-2 ${
+              museumMode
+                ? "border-slate-700 border-t-amber-400/80"
+                : "border-[#d4cab2] border-t-[#3f6f64]"
+            }`}
+          />
           <p className="text-xs">省界底图加载中…</p>
         </div>
       )}
       {status === "error" && (
-        <div className="absolute inset-0 z-[1] flex flex-col items-center justify-center gap-2 bg-[rgba(248,249,245,0.92)] px-4 text-center">
+        <div
+          className={`absolute inset-0 z-[1] flex flex-col items-center justify-center gap-2 px-4 text-center transition-colors duration-700 ${
+            museumMode
+              ? "bg-[rgba(9,10,15,0.92)] text-slate-300"
+              : "bg-[rgba(248,249,245,0.92)]"
+          }`}
+        >
           <p className="text-sm text-[#b6584f]">地图未能绘制</p>
           <p className="max-w-sm text-xs text-[#898d80]">
             {errorMsg ?? "请检查 /geojson/china-provinces.json 是否可访问"}

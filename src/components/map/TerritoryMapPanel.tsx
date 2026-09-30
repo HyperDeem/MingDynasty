@@ -17,7 +17,7 @@ const GeoMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full min-h-[320px] flex-col items-center justify-center gap-2 bg-[#f3efe4] text-[#898d80]">
+      <div className="flex h-full min-h-[320px] flex-col items-center justify-center gap-2 bg-[#f3efe4] text-[#898d80] transition-colors duration-700">
         <span className="h-7 w-7 animate-spin rounded-full border-2 border-[#d4cab2] border-t-[#3f6f64]" />
         <p className="text-xs">时空数据正在准备</p>
         <p className="text-[10px] text-[#898d80]/80">省界与疆域叠层加载中…</p>
@@ -26,6 +26,42 @@ const GeoMap = dynamic(
   }
 );
 
+function LampIcon({ lit }: { lit: boolean }) {
+  if (lit) {
+    /* 开灯态：太阳 — 点击可关灯 */
+    return (
+      <svg
+        viewBox="0 0 24 24"
+        className="h-[15px] w-[15px]"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <circle cx="12" cy="12" r="3.25" />
+        <path d="M12 2.75v2.1M12 19.15v2.1M2.75 12h2.1M19.15 12h2.1M5.2 5.2l1.5 1.5M17.3 17.3l1.5 1.5M18.8 5.2l-1.5 1.5M6.7 17.3l-1.5 1.5" />
+      </svg>
+    );
+  }
+  /* 关灯入口：月亮 */
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-[15px] w-[15px]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M20.2 14.1A7.6 7.6 0 0 1 9.9 3.8 7.85 7.85 0 1 0 20.2 14.1Z" />
+    </svg>
+  );
+}
+
 interface TerritoryMapPanelProps {
   currentYear: number;
   territory?: TerritoryData;
@@ -33,6 +69,9 @@ interface TerritoryMapPanelProps {
   onSelectYear?: (year: number) => void;
   /** 全屏舞台：去边框页眉，控件浮动在地图上 */
   variant?: "card" | "stage";
+  /** 展厅关灯 / 顶光模式 */
+  museumMode?: boolean;
+  onToggleMuseumMode?: () => void;
 }
 
 /**
@@ -45,6 +84,8 @@ export function TerritoryMapPanel({
   className,
   onSelectYear,
   variant = "card",
+  museumMode = false,
+  onToggleMuseumMode,
 }: TerritoryMapPanelProps) {
   const {
     snapshot,
@@ -93,8 +134,15 @@ export function TerritoryMapPanel({
   const shellClass =
     className ??
     (isStage
-      ? "absolute inset-0 flex flex-col overflow-hidden bg-[#f3efe4]"
+      ? `absolute inset-0 flex flex-col overflow-hidden transition-colors duration-700 ${
+          museumMode ? "bg-[#090a0f]" : "bg-[#f3efe4]"
+        }`
       : "flex min-h-[360px] flex-col overflow-hidden border border-[#e3dcca] bg-[#fbf9f3]");
+
+  const glassChrome =
+    "museum-glass border border-amber-900/10 bg-amber-50/50 shadow-[0_1px_2px_rgba(48,42,28,0.05)] backdrop-blur-md transition-colors duration-700";
+  const ctrlBtn =
+    "museum-ctrl grid h-9 w-9 place-items-center rounded-full border border-amber-900/25 bg-amber-50/40 text-[15px] leading-none text-[#4f544c] backdrop-blur-md transition duration-700 hover:border-amber-900/45 hover:bg-amber-50/65 hover:text-[#2f554d]";
 
   return (
     <section className={shellClass}>
@@ -144,6 +192,7 @@ export function TerritoryMapPanel({
             capitals={capitals}
             crossfade={crossfade}
             highlightRegion={legendHoverRegion}
+            museumMode={museumMode}
             className="absolute inset-0 h-full w-full min-h-[320px] overflow-hidden"
             onFeatureHover={(name, props) => {
               setHoverName(name);
@@ -155,6 +204,10 @@ export function TerritoryMapPanel({
           />
         )}
 
+        {/* 顶光 + 暗角：叠在 canvas 上，不拦截指针 */}
+        <div className="museum-spotlight" aria-hidden />
+        <div className="museum-vignette" aria-hidden />
+
         <SnapshotFloatCard
           isStage={isStage}
           label={snapshot.label}
@@ -164,12 +217,32 @@ export function TerritoryMapPanel({
           loading={loading}
         />
 
+        {/* 右上：展厅关灯 */}
+        {onToggleMuseumMode && (
+          <div
+            className={`absolute z-10 ${
+              isStage ? "right-3 top-3 md:right-5 md:top-4" : "right-3 top-3 md:right-4"
+            }`}
+          >
+            <button
+              type="button"
+              aria-label={museumMode ? "展厅开灯" : "展厅关灯"}
+              aria-pressed={museumMode}
+              title={museumMode ? "开灯 · 退出展厅模式" : "关灯 · 展厅顶光模式"}
+              onClick={onToggleMuseumMode}
+              className={ctrlBtn}
+            >
+              <LampIcon lit={museumMode} />
+            </button>
+          </div>
+        )}
+
         {/* 图例：外延区悬停发光抬升，对应复选框同步亮起；亦可悬停图例反亮地图 */}
         <div
-          className={`absolute z-10 flex max-w-[min(48%,420px)] flex-wrap justify-end gap-x-1.5 gap-y-1 rounded-full border border-amber-900/10 bg-amber-50/50 px-2.5 py-1.5 shadow-[0_1px_2px_rgba(48,42,28,0.05)] backdrop-blur-md ${
+          className={`absolute z-10 flex max-w-[min(48%,420px)] flex-wrap justify-end gap-x-1.5 gap-y-1 rounded-full px-2.5 py-1.5 ${glassChrome} ${
             isStage
               ? "right-3 top-16 md:right-5 md:top-[4.75rem]"
-              : "right-3 top-3 md:right-4 md:top-3.5"
+              : "right-14 top-3 md:right-[3.75rem] md:top-3.5"
           }`}
         >
           {legendItems.map((item) => {
@@ -188,8 +261,8 @@ export function TerritoryMapPanel({
                   interactive ? "pointer-events-auto cursor-default" : ""
                 } ${
                   lit
-                    ? "bg-amber-100/85 text-[#222621] shadow-[0_0_14px_rgba(63,111,100,0.32)]"
-                    : "text-[#4f544c]"
+                    ? `museum-legend-lit bg-amber-100/85 text-[#222621] shadow-[0_0_14px_rgba(63,111,100,0.32)]`
+                    : "museum-glass-muted text-[#4f544c]"
                 }`}
               >
                 {interactive ? (
@@ -238,7 +311,7 @@ export function TerritoryMapPanel({
           })}
         </div>
 
-        {/* 缩放：细线圆环，统一设计语言 */}
+        {/* 缩放控制 */}
         <div
           className={`absolute z-10 grid gap-2 ${
             isStage
@@ -267,7 +340,7 @@ export function TerritoryMapPanel({
               aria-label={btn.label}
               title={btn.label}
               onClick={btn.action}
-              className="grid h-9 w-9 place-items-center rounded-full border border-amber-900/25 bg-amber-50/40 text-[15px] leading-none text-[#4f544c] backdrop-blur-md transition hover:border-amber-900/45 hover:bg-amber-50/65 hover:text-[#2f554d]"
+              className={ctrlBtn}
             >
               {btn.symbol}
             </button>
@@ -276,7 +349,7 @@ export function TerritoryMapPanel({
 
         {/* 底部快照轴 */}
         <div
-          className={`absolute left-1/2 z-20 w-[min(980px,calc(100%-28px))] -translate-x-1/2 rounded-[7px] border border-amber-900/10 bg-amber-50/50 px-3 py-2 shadow-[0_4px_18px_-8px_rgba(48,42,28,0.18)] backdrop-blur-md ${
+          className={`absolute left-1/2 z-20 w-[min(980px,calc(100%-28px))] -translate-x-1/2 rounded-[7px] px-3 py-2 ${glassChrome} shadow-[0_4px_18px_-8px_rgba(48,42,28,0.18)] ${
             isStage ? "bottom-[9.5rem] md:bottom-[10rem]" : "bottom-3"
           }`}
         >
@@ -294,20 +367,22 @@ export function TerritoryMapPanel({
                   disabled={!onSelectYear}
                 >
                   <span
-                    className={`font-serif text-[12px] leading-none tracking-[0.08em] ${
+                    className={`font-serif text-[12px] leading-none tracking-[0.08em] transition-colors duration-700 ${
                       active
-                        ? "font-semibold text-[#222621]"
-                        : "text-[#898d80] group-hover:text-[#4f544c]"
+                        ? "museum-snap-active font-semibold text-[#222621]"
+                        : "museum-glass-muted text-[#898d80] group-hover:text-[#4f544c]"
                     }`}
                   >
                     {s.label}
                   </span>
-                  <span className="text-[9px] tabular-nums text-[#898d80]">
+                  <span className="museum-glass-faint text-[9px] tabular-nums text-[#898d80]">
                     {s.yearFrom}–{s.yearTo}
                   </span>
                   <span
                     className={`mt-0.5 h-[3px] w-full rounded-full transition ${
-                      active ? "bg-[#3f6f64]" : "bg-[#e3dcca]"
+                      active
+                        ? "museum-snap-bar bg-[#3f6f64]"
+                        : "museum-snap-idle bg-[#e3dcca]"
                     }`}
                   />
                 </button>

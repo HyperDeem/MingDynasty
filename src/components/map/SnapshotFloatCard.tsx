@@ -255,7 +255,7 @@ export function SnapshotFloatCard({
 
   const shortLabel = label.replace(/[·\s]/g, "").slice(0, 2) || "疆";
   const glass =
-    "border border-amber-900/10 bg-amber-50/50 shadow-[0_1px_2px_rgba(48,42,28,0.05)] backdrop-blur-md";
+    "museum-glass border border-amber-900/10 bg-amber-50/50 shadow-[0_1px_2px_rgba(48,42,28,0.05)] backdrop-blur-md transition-colors duration-700";
 
   const fade = {
     initial: { opacity: 0 },
@@ -291,10 +291,10 @@ export function SnapshotFloatCard({
               title="拖动定位 · 点击展开"
               className={`pointer-events-auto absolute left-0 top-0 flex h-14 w-14 cursor-grab touch-none flex-col items-center justify-center rounded-full active:cursor-grabbing ${glass}`}
             >
-              <span className="font-serif text-[11px] font-semibold tracking-[0.14em] text-[#222621]">
+              <span className="museum-glass-text font-serif text-[11px] font-semibold tracking-[0.14em] text-[#222621]">
                 {shortLabel}
               </span>
-              <span className="mt-0.5 text-[8px] tracking-wider text-[#898d80]">
+              <span className="museum-glass-muted mt-0.5 text-[8px] tracking-wider text-[#898d80]">
                 快照
               </span>
             </motion.button>
@@ -306,45 +306,45 @@ export function SnapshotFloatCard({
             >
               <header className="flex min-h-[2.85rem] shrink-0 items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="font-serif text-[9px] tracking-[0.28em] text-[#b6584f]">
+                  <p className="museum-glass-accent font-serif text-[9px] tracking-[0.28em] text-[#b6584f]">
                     疆域快照
                   </p>
-                  <h3 className="mt-1 truncate font-serif text-base font-bold leading-tight tracking-[0.14em] text-[#222621] md:text-lg md:tracking-[0.16em]">
+                  <h3 className="museum-glass-text mt-1 truncate font-serif text-base font-bold leading-tight tracking-[0.14em] text-[#222621] md:text-lg md:tracking-[0.16em]">
                     {label}
                   </h3>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   {loading && (
-                    <span className="text-[10px] text-[#898d80]">切换中…</span>
+                    <span className="museum-glass-muted text-[10px] text-[#898d80]">切换中…</span>
                   )}
                   <button
                     type="button"
                     onClick={collapse}
                     aria-label="缩略疆域快照"
                     title="缩略"
-                    className="grid h-7 w-7 place-items-center rounded-full border border-amber-900/20 bg-transparent text-[13px] leading-none text-[#6a6558] transition hover:border-amber-900/35 hover:text-[#222621]"
+                    className="museum-ctrl grid h-7 w-7 place-items-center rounded-full border border-amber-900/20 bg-transparent text-[13px] leading-none text-[#6a6558] transition duration-700 hover:border-amber-900/35 hover:text-[#222621]"
                   >
                     −
                   </button>
                 </div>
               </header>
 
-              <p className="mt-1.5 flex min-h-[1.25rem] shrink-0 items-baseline gap-2 text-[11px] text-[#4f544c]">
-                <span className="shrink-0 font-serif text-[9px] tracking-[0.2em] text-[#898d80]">
+              <p className="museum-glass-muted mt-1.5 flex min-h-[1.25rem] shrink-0 items-baseline gap-2 text-[11px] text-[#4f544c]">
+                <span className="museum-glass-faint shrink-0 font-serif text-[9px] tracking-[0.2em] text-[#898d80]">
                   都城
                 </span>
-                <span className="truncate font-serif text-[12px] font-semibold tracking-[0.1em] text-[#222621]">
+                <span className="museum-glass-text truncate font-serif text-[12px] font-semibold tracking-[0.1em] text-[#222621]">
                   {capitals.length > 0
                     ? capitals.map((c) => c.name).join(" · ")
                     : "—"}
                 </span>
               </p>
 
-              <p className="mt-1.5 line-clamp-4 min-h-[4.125rem] flex-1 overflow-hidden text-[10px] leading-[1.65] tracking-wide text-[#4f544c] md:min-h-[4.675rem] md:text-[11px] md:leading-[1.7]">
+              <p className="museum-glass-muted mt-1.5 line-clamp-4 min-h-[4.125rem] flex-1 overflow-hidden text-[10px] leading-[1.65] tracking-wide text-[#4f544c] md:min-h-[4.675rem] md:text-[11px] md:leading-[1.7]">
                 {description}
               </p>
 
-              <p className="mt-1.5 min-h-[1.75rem] shrink-0 border-t border-dashed border-amber-900/10 pt-1.5 font-serif text-[11px] leading-none tracking-[0.12em] text-[#b6584f]">
+              <p className="museum-glass-accent museum-glass-rule mt-1.5 min-h-[1.75rem] shrink-0 border-t border-dashed border-amber-900/10 pt-1.5 font-serif text-[11px] leading-none tracking-[0.12em] text-[#b6584f]">
                 {hoverName ?? "\u00a0"}
               </p>
             </motion.div>

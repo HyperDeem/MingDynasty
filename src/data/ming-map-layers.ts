@@ -126,10 +126,10 @@ export const MAP_THEME = {
   paper: "#f4f1e9",
   paperRaised: "#fbf9f3",
   /** 省面填充（参考站 chroma 起点） */
-    land: "#e8ece4",
-    landHover: "#dde3d8",
-    landMuted: "#f3f5f1",
-    boundary: "rgba(79, 84, 76, 0.32)",
+  land: "#e8ece4",
+  landHover: "#dde3d8",
+  landMuted: "#f3f5f1",
+  boundary: "rgba(79, 84, 76, 0.32)",
   boundaryStrong: "rgba(47, 85, 77, 0.45)",
   ink: "#222621",
   inkSoft: "#4f544c",
@@ -139,6 +139,26 @@ export const MAP_THEME = {
   core: REGION_STYLE.core.fill,
   capital: "#b6584f",
 } as const;
+
+/** 展厅关灯：深黑陆地 + 青瓷疆域微光 */
+export const MAP_THEME_MUSEUM = {
+  paper: "#090a0f",
+  paperRaised: "#12141c",
+  land: "#151922",
+  landHover: "#1c2330",
+  landMuted: "#10141c",
+  boundary: "rgba(148, 163, 184, 0.22)",
+  boundaryStrong: "rgba(45, 212, 191, 0.45)",
+  ink: "#e8e6df",
+  inkSoft: "#b8b4a8",
+  inkFaint: "#7a7880",
+  hairline: "rgba(255,255,255,0.08)",
+  hairlineStrong: "rgba(255,255,255,0.14)",
+  core: "#2dd4bf",
+  capital: "#f0b429",
+} as const;
+
+export type MapThemeColors = typeof MAP_THEME | typeof MAP_THEME_MUSEUM;
 
 export interface CapitalMarker {
   id: string;

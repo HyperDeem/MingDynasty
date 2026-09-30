@@ -38,6 +38,7 @@ export default function HomePage() {
   const [highlightEventId, setHighlightEventId] = useState<string | null>(
     null
   );
+  const [isMuseumMode, setIsMuseumMode] = useState(false);
 
   const territory = useMemo(
     () => getPeriodContent(periodId).territory,
@@ -109,23 +110,39 @@ export default function HomePage() {
   );
 
   return (
-    <div className="relative h-dvh overflow-hidden bg-[#f3efe4]">
+    <div
+      className={`relative h-dvh overflow-hidden transition-colors duration-700 ${
+        isMuseumMode ? "museum-mode bg-[#090a0f]" : "bg-[#f3efe4]"
+      }`}
+    >
       {/* 地图铺满视口：时间轴改为浮层，切朝/展开时不再挤矮画布，从根源消除抖动 */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 z-[2]">
         <TerritoryMapPanel
           variant="stage"
           currentYear={currentYear}
           territory={territory}
           onSelectYear={handleSelectMapYear}
+          museumMode={isMuseumMode}
+          onToggleMuseumMode={() => setIsMuseumMode((v) => !v)}
         />
 
         {/* 轻量顶栏 · 策展式衬线标题 */}
-        <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start px-4 pt-3 md:px-6 md:pt-4">
-          <div className="pointer-events-auto rounded-md border border-amber-900/10 bg-amber-50/50 px-3.5 py-2.5 shadow-[0_1px_2px_rgba(48,42,28,0.05)] backdrop-blur-md">
-            <p className="font-serif text-[9px] font-medium uppercase tracking-[0.42em] text-ink-500 md:text-[10px] md:tracking-[0.48em]">
+        <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 px-4 pt-3 md:px-6 md:pt-4">
+          <div
+            className="museum-glass pointer-events-auto rounded-md border border-amber-900/10 bg-amber-50/50 px-3.5 py-2.5 shadow-[0_1px_2px_rgba(48,42,28,0.05)] backdrop-blur-md transition-colors duration-700"
+          >
+            <p
+              className={`font-serif text-[9px] font-medium uppercase tracking-[0.42em] transition-colors duration-700 md:text-[10px] md:tracking-[0.48em] ${
+                isMuseumMode ? "museum-glass-muted" : "text-ink-500"
+              }`}
+            >
               INTERACTIVE CHRONICLE
             </p>
-            <h1 className="mt-1.5 font-serif text-xl font-bold tracking-[0.2em] text-ink-900 md:text-2xl md:tracking-[0.22em]">
+            <h1
+              className={`mt-1.5 font-serif text-xl font-bold tracking-[0.2em] transition-colors duration-700 md:text-2xl md:tracking-[0.22em] ${
+                isMuseumMode ? "museum-glass-text" : "text-ink-900"
+              }`}
+            >
               {DYNASTY_META.title}
             </h1>
           </div>

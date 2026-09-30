@@ -122,8 +122,8 @@ export function OverlayPanel({
   const wide = size === "wide";
 
   const sizeClass = wide
-    ? "w-[min(100%-1.25rem,34rem)] md:w-[min(54vw,40rem)] lg:w-[min(58vw,46rem)] bg-[rgba(251,249,243,0.48)] shadow-[0_16px_48px_-18px_rgba(48,42,28,0.28)] backdrop-blur-[6px]"
-    : "w-[min(100%-1.5rem,26rem)] md:w-[min(44vw,30rem)] lg:w-[min(40vw,32rem)] bg-[rgba(251,249,243,0.94)] shadow-[0_12px_40px_-16px_rgba(48,42,28,0.35)] backdrop-blur-md";
+    ? "museum-panel w-[min(100%-1.25rem,34rem)] md:w-[min(54vw,40rem)] lg:w-[min(58vw,46rem)] bg-[rgba(251,249,243,0.48)] shadow-[0_16px_48px_-18px_rgba(48,42,28,0.28)] backdrop-blur-[6px] transition-colors duration-700"
+    : "museum-panel w-[min(100%-1.5rem,26rem)] md:w-[min(44vw,30rem)] lg:w-[min(40vw,32rem)] bg-[rgba(251,249,243,0.94)] shadow-[0_12px_40px_-16px_rgba(48,42,28,0.35)] backdrop-blur-md transition-colors duration-700";
 
   return (
     <AnimatePresence>
@@ -143,24 +143,25 @@ export function OverlayPanel({
           } ${className}`}
         >
           <header
-            className={`flex shrink-0 items-start justify-between gap-3 border-b border-ink-800/10 bg-[rgba(251,249,243,0.28)] px-3 py-2.5 md:px-4 md:py-3 ${
+            data-museum-chrome
+            className={`flex shrink-0 items-start justify-between gap-3 border-b border-ink-800/10 bg-[rgba(251,249,243,0.28)] px-3 py-2.5 transition-colors duration-700 md:px-4 md:py-3 ${
               wide ? "md:px-5" : ""
             }`}
           >
             <div className="min-w-0">
               {eyebrow && (
-                <p className="font-display text-[10px] tracking-[0.28em] text-cinnabar md:tracking-[0.32em]">
+                <p className="museum-glass-accent font-display text-[10px] tracking-[0.28em] text-cinnabar md:tracking-[0.32em]">
                   {eyebrow}
                 </p>
               )}
-              <h2 className="mt-0.5 font-display text-base font-bold text-ink-900 md:text-lg lg:text-xl">
+              <h2 className="museum-glass-text mt-0.5 font-display text-base font-bold text-ink-900 md:text-lg lg:text-xl">
                 {title}
               </h2>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="shrink-0 border border-ink-800/15 bg-[rgba(251,249,243,0.55)] px-2.5 py-1 text-[11px] text-ink-600 transition hover:border-cinnabar/40 hover:text-cinnabar"
+              className="museum-ctrl shrink-0 border border-ink-800/15 bg-[rgba(251,249,243,0.55)] px-2.5 py-1 text-[11px] text-ink-600 transition duration-700 hover:border-cinnabar/40 hover:text-cinnabar"
             >
               关闭
             </button>

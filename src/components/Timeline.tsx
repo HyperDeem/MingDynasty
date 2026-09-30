@@ -459,9 +459,9 @@ export function Timeline({
             : "时间轴，点击展开"
       }
       className={[
-        "fixed bottom-6 left-1/2 z-40 w-[min(1120px,calc(100vw-1.5rem))] -translate-x-1/2",
+        "museum-glass fixed bottom-6 left-1/2 z-40 w-[min(1120px,calc(100vw-1.5rem))] -translate-x-1/2",
         "rounded-2xl border border-amber-500/20 bg-slate-950/80 shadow-2xl backdrop-blur-xl",
-        "outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40",
+        "outline-none transition-colors duration-700 focus-visible:ring-2 focus-visible:ring-amber-400/40",
         interactionLocked
           ? "pointer-events-none cursor-default opacity-45"
           : "pointer-events-auto cursor-pointer",
