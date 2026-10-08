@@ -63,12 +63,25 @@ export function GenealogyGraph({
   /** 用户相对适配比例的缩放（1 = 刚好铺满视口） */
   const [userScale, setUserScale] = useState(1);
   const [viewportSize, setViewportSize] = useState({ w: 0, h: 0 });
+  const [museumDark, setMuseumDark] = useState(false);
   const scaleRef = useRef(1);
   const layoutRef = useRef({
     offsetX: 0,
     offsetY: 0,
     persons: new Map<LineageNodeId, { drawX: number; drawY: number }>(),
   });
+
+  useEffect(() => {
+    const sync = () =>
+      setMuseumDark(document.documentElement.classList.contains("museum-mode"));
+    sync();
+    const obs = new MutationObserver(sync);
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => obs.disconnect();
+  }, []);
 
   useEffect(() => {
     setUserScale(1);
@@ -245,7 +258,7 @@ export function GenealogyGraph({
   return (
     <div className={`relative flex h-full min-h-0 flex-col ${className}`}>
       <div className="museum-emp-toolbar flex shrink-0 items-center justify-center gap-2 border-b border-ink-800/10 bg-[rgba(251,249,243,0.22)] px-3 py-1.5 md:px-4">
-        {mode === "full" && <Legend />}
+        {mode === "full" && <Legend museumDark={museumDark} />}
         {mode === "ego" && onRequestFullscreen && (
           <button
             type="button"
@@ -397,12 +410,20 @@ export function GenealogyGraph({
               }
 
               const d = `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
+              const edgeStroke = museumDark
+                ? edge.style === "dashed"
+                  ? "rgba(148, 163, 184, 0.65)"
+                  : "rgba(226, 232, 240, 0.72)"
+                : edge.style === "dashed"
+                  ? "#735e40"
+                  : "#3d3326";
+              const labelFill = museumDark ? "#94a3b8" : "#8f754f";
               return (
                 <g key={edge.id} opacity={dimmed ? 0.12 : 1}>
                   <path
                     d={d}
                     fill="none"
-                    stroke={edge.style === "dashed" ? "#735e40" : "#3d3326"}
+                    stroke={edgeStroke}
                     strokeWidth={edge.style === "solid" ? 2 : 1.5}
                     strokeDasharray={
                       edge.style === "dashed" ? "6 4" : undefined
@@ -414,7 +435,7 @@ export function GenealogyGraph({
                       y={midY - 4}
                       textAnchor="middle"
                       fontSize={9}
-                      fill="#8f754f"
+                      fill={labelFill}
                       fontFamily="var(--font-body), sans-serif"
                     >
                       {edge.label}
@@ -665,9 +686,9 @@ function PersonNode({
           type="button"
           onClick={() => onSelect(person.id)}
           title={`${person.name}御像`}
-          className={`absolute overflow-hidden border bg-ink-100 transition ${
+          className={`museum-emp-card absolute overflow-hidden border bg-ink-100 transition ${
             isFocus
-              ? "border-cinnabar shadow-[inset_0_0_0_1px_rgba(196,60,44,0.35)]"
+              ? "museum-emp-card-active border-cinnabar shadow-[inset_0_0_0_1px_rgba(196,60,44,0.35)]"
               : "border-ink-800/15"
           } ${dimmed ? "opacity-40" : ""}`}
           style={{
@@ -811,17 +832,23 @@ function lightningPath(x1: number, y1: number, x2: number, y2: number) {
     L ${x2} ${y2}`;
 }
 
-function Legend() {
+function Legend({ museumDark = false }: { museumDark?: boolean }) {
   return (
     <div className="museum-emp-dd hidden flex-wrap items-center gap-3 text-[10px] text-ink-500 sm:flex">
       <span className="inline-flex items-center gap-1">
-        <span className="inline-block h-px w-4 bg-ink-800" />
+        <span
+          className="inline-block h-px w-4"
+          style={{ background: museumDark ? "#cbd5e1" : "#3d3326" }}
+        />
         嫡长 / 直系
       </span>
       <span className="inline-flex items-center gap-1">
         <span
-          className="inline-block h-px w-4 border-t border-dashed border-ink-600"
-          style={{ borderTopWidth: 1 }}
+          className="inline-block h-px w-4 border-t border-dashed"
+          style={{
+            borderTopWidth: 1,
+            borderColor: museumDark ? "#94a3b8" : "#735e40",
+          }}
         />
         旁支 / 次子
       </span>

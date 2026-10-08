@@ -352,7 +352,7 @@ function ArchiveThumb({
         className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition hover:bg-ink-800/[0.04] md:px-3.5"
       >
         {thumb ?? (
-          <span className="flex h-10 w-10 shrink-0 flex-col items-center justify-center border border-ink-800/10 bg-[rgba(251,249,243,0.55)]">
+          <span className="museum-emp-card flex h-10 w-10 shrink-0 flex-col items-center justify-center border border-ink-800/10 bg-[rgba(251,249,243,0.55)]">
             <span className="font-display text-[9px] tracking-wider text-cinnabar">
               {eyebrow.slice(0, 2)}
             </span>
@@ -362,12 +362,12 @@ function ArchiveThumb({
           <span className="museum-emp-dt block font-display text-[10px] tracking-[0.22em] text-ink-400">
             {eyebrow}
           </span>
-          <span className="museum-emp-title mt-0.5 block truncate font-display text-sm font-semibold text-ink-900">
+          <span className="museum-emp-title mt-0.5 block truncate font-serif text-sm font-semibold text-ink-900">
             {title}
           </span>
         </span>
         <span
-          className={`shrink-0 font-display text-xs text-ink-400 transition ${
+          className={`museum-emp-muted museum-emp-dt shrink-0 font-display text-xs text-ink-400 transition ${
             open ? "rotate-90" : ""
           }`}
           aria-hidden
@@ -383,7 +383,7 @@ function ArchiveThumb({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden border-t border-ink-800/10"
+            className="museum-glass-rule overflow-hidden border-t border-ink-800/10"
           >
             <div className="min-h-0">{children}</div>
           </motion.div>

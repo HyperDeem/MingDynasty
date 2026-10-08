@@ -52,26 +52,26 @@ export function WorldEventsDrawer({
       side="left"
     >
       {/* 同时期疆域要点 */}
-      <section className="border-b border-ink-800/10 px-4 py-3">
+      <section className="museum-glass-rule border-b border-ink-800/10 px-4 py-3">
         <div className="flex items-baseline justify-between gap-2">
-          <p className="font-display text-[10px] tracking-[0.22em] text-ink-400">
+          <p className="museum-emp-dt font-display text-[10px] tracking-[0.22em] text-ink-400">
             疆域要点
           </p>
-          <p className="text-[10px] tabular-nums text-ink-400">
+          <p className="museum-emp-dt font-mono text-[10px] tabular-nums text-ink-400">
             地图 {currentYear} · 峰值约 {territory.peakYear}
           </p>
         </div>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-600">
+        <div className="museum-emp-body mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm leading-relaxed text-ink-600">
           <span>
             约{" "}
-            <strong className="font-display tabular-nums text-ink-800">
+            <strong className="museum-emp-title font-display tabular-nums text-ink-800">
               {territory.areaWanKm2}
             </strong>{" "}
             万 km²
           </span>
           <span>
             {territorySnap.coreLegendLabel}
-            <span className="ml-1 tabular-nums text-ink-400">
+            <span className="museum-emp-dt ml-1 font-mono tabular-nums text-ink-400">
               · {territory.provinces} 省
             </span>
           </span>
@@ -83,8 +83,10 @@ export function WorldEventsDrawer({
               key={h.label}
               className="flex items-baseline justify-between gap-2 text-[11px]"
             >
-              <span className="text-ink-400">{h.label}</span>
-              <span className="text-right text-ink-700">{h.value}</span>
+              <span className="museum-emp-dt text-ink-400">{h.label}</span>
+              <span className="museum-emp-dd text-right font-mono text-ink-700">
+                {h.value}
+              </span>
             </li>
           ))}
         </ul>
@@ -92,7 +94,7 @@ export function WorldEventsDrawer({
 
       <ul className="px-4 py-2">
         {events.length === 0 && (
-          <li className="py-6 text-center text-sm text-ink-400">
+          <li className="museum-emp-dt py-6 text-center text-sm text-ink-400">
             本时期暂无收录事件
           </li>
         )}
@@ -103,8 +105,12 @@ export function WorldEventsDrawer({
               key={event.id}
               ref={highlighted ? highlightRef : undefined}
               className={`py-3.5 transition-colors ${
-                index > 0 ? "border-t border-ink-800/10" : ""
-              } ${highlighted ? "-mx-2 rounded bg-cinnabar/[0.07] px-2" : ""}`}
+                index > 0 ? "museum-glass-rule border-t border-ink-800/10" : ""
+              } ${
+                highlighted
+                  ? "museum-emp-card-active -mx-2 rounded bg-cinnabar/[0.07] px-2"
+                  : ""
+              }`}
             >
               <button
                 type="button"
@@ -112,7 +118,7 @@ export function WorldEventsDrawer({
                 onClick={() => onSelectEventYear?.(event.year, event.id)}
               >
                 <div className="flex items-baseline justify-between gap-3">
-                  <h3 className="font-display text-[15px] font-semibold text-ink-800">
+                  <h3 className="museum-emp-title font-serif text-[15px] font-semibold text-ink-800">
                     {event.title}
                     {event.weight === "turning" && (
                       <span className="ml-2 align-middle text-[10px] font-normal tracking-wider text-cinnabar">
@@ -120,11 +126,11 @@ export function WorldEventsDrawer({
                       </span>
                     )}
                   </h3>
-                  <time className="shrink-0 text-[11px] tabular-nums text-ink-400">
+                  <time className="museum-emp-dd shrink-0 font-mono text-[11px] tabular-nums text-ink-400">
                     {event.yearLabel}
                   </time>
                 </div>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-ink-600">
+                <p className="museum-emp-body mt-1.5 text-sm leading-relaxed text-ink-600">
                   {event.description}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">

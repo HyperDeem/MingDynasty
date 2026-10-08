@@ -241,8 +241,51 @@ main {
   color: #94a3b8 !important;
 }
 
+.museum-mode .museum-panel .museum-emp-muted {
+  color: #94a3b8 !important;
+}
+
 .museum-mode .museum-panel .museum-emp-nav-btn .museum-emp-nav-name {
   color: #e2e8f0 !important;
+}
+
+.museum-mode .museum-panel strong.museum-emp-title {
+  color: #f8fafc !important;
+}
+
+/* 浮窗内事件标签：深色面板可读 */
+.museum-mode .museum-panel .text-rose-700,
+.museum-mode .museum-emp-scope .text-rose-700 {
+  color: #fda4af !important;
+}
+.museum-mode .museum-panel .text-sky-800,
+.museum-mode .museum-emp-scope .text-sky-800 {
+  color: #7dd3fc !important;
+}
+.museum-mode .museum-panel .text-emerald-800,
+.museum-mode .museum-emp-scope .text-emerald-800 {
+  color: #6ee7b7 !important;
+}
+.museum-mode .museum-panel .text-amber-800,
+.museum-mode .museum-emp-scope .text-amber-800 {
+  color: #fcd34d !important;
+}
+
+.museum-mode .museum-panel .bg-rose-500\/10,
+.museum-mode .museum-emp-scope .bg-rose-500\/10 {
+  background-color: rgba(244, 63, 94, 0.16) !important;
+}
+.museum-mode .museum-panel .bg-sky-500\/10,
+.museum-mode .museum-emp-scope .bg-sky-500\/10 {
+  background-color: rgba(14, 165, 233, 0.16) !important;
+}
+.museum-mode .museum-panel .bg-emerald-500\/10,
+.museum-mode .museum-emp-scope .bg-emerald-500\/10 {
+  background-color: rgba(16, 185, 129, 0.16) !important;
+}
+.museum-mode .museum-panel .bg-amber-400\/15,
+.museum-mode .museum-emp-scope .bg-amber-400\/15 {
+  background-color: rgba(251, 191, 36, 0.18) !important;
 }
 
 .museum-mode .museum-panel .museum-emp-archive {

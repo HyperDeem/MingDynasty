@@ -84,6 +84,17 @@ interface ExtraFeat {
   opacity: number;
   rings: MercatorRing[];
   labelAt: [number, number] | null;
+  /** 羁縻示意虚点（墨卡托坐标，绘制时投影） */
+  stipple: StippleDot[];
+}
+
+interface StippleDot {
+  mx: number;
+  my: number;
+  /** 0–1 不透明度权重；边界点更高 */
+  weight: number;
+  /** 基准屏幕半径（px） */
+  size: number;
 }
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -97,6 +108,119 @@ function hexToRgba(hex: string, alpha: number): string {
       : h;
   const n = parseInt(full, 16);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
+function hash01(a: number, b: number, c = 0): number {
+  let n =
+    Math.imul(a | 0, 374761393) ^
+    Math.imul(b | 0, 668265263) ^
+    Math.imul(c | 0, 2147483647);
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+}
+
+function pointInMercatorRing(mx: number, my: number, ring: MercatorRing): boolean {
+  let inside = false;
+  const n = ring.length / 2;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = ring[i * 2]!;
+    const yi = ring[i * 2 + 1]!;
+    const xj = ring[j * 2]!;
+    const yj = ring[j * 2 + 1]!;
+    if ((yi > my) !== (yj > my) && mx < ((xj - xi) * (my - yi)) / (yj - yi + 1e-12) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+/**
+ * 羁縻 / 示意区虚点场：边界带略密，整体疏朗，带法向抖动
+ */
+function buildInfluenceStipple(rings: MercatorRing[]): StippleDot[] {
+  const dots: StippleDot[] = [];
+  let seed = 1;
+
+  for (const ring of rings) {
+    const n = ring.length / 2;
+    if (n < 3) continue;
+
+    // 边界带：沿边稀疏采样 + 法向抖动
+    for (let i = 0; i < n; i++) {
+      const i2 = (i + 1) % n;
+      const x0 = ring[i * 2]!;
+      const y0 = ring[i * 2 + 1]!;
+      const x1 = ring[i2 * 2]!;
+      const y1 = ring[i2 * 2 + 1]!;
+      const dx = x1 - x0;
+      const dy = y1 - y0;
+      const len = Math.hypot(dx, dy) || 1e-9;
+      const px = -dy / len;
+      const py = dx / len;
+      const step = 0.0034;
+      const count = Math.max(1, Math.ceil(len / step));
+      for (let s = 0; s < count; s++) {
+        const h1 = hash01(seed++, i * 17 + s, 1);
+        const h2 = hash01(seed++, s * 31 + i, 2);
+        // 约四成采样点跳过，避免珠串过密
+        if (h1 > 0.62) continue;
+        const t = Math.min(
+          1,
+          Math.max(0, s / count + (h1 - 0.5) * 0.7 / count)
+        );
+        const perp = (h2 - 0.4) * 0.014;
+        dots.push({
+          mx: x0 + dx * t + px * perp,
+          my: y0 + dy * t + py * perp,
+          weight: 0.62 + h2 * 0.38,
+          size: 1.55 + h1 * 1.15,
+        });
+
+        // 偶发第二点，略错位，保持边界「雾」感但不堆叠
+        if (h2 > 0.78) {
+          const h3 = hash01(seed++, i, s);
+          dots.push({
+            mx: x0 + dx * t + px * (perp + (h3 - 0.5) * 0.01),
+            my: y0 + dy * t + py * (perp + (h3 - 0.5) * 0.01),
+            weight: 0.45 + h3 * 0.3,
+            size: 1.2 + h3 * 0.9,
+          });
+        }
+      }
+    }
+
+    // 内部极疏：只暗示范围，不铺满
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (let i = 0; i < ring.length; i += 2) {
+      minX = Math.min(minX, ring[i]!);
+      maxX = Math.max(maxX, ring[i]!);
+      minY = Math.min(minY, ring[i + 1]!);
+      maxY = Math.max(maxY, ring[i + 1]!);
+    }
+    const cell = 0.0085;
+    for (let x = minX; x <= maxX; x += cell) {
+      for (let y = minY; y <= maxY; y += cell) {
+        const ix = Math.floor(x * 1e5);
+        const iy = Math.floor(y * 1e5);
+        const h = hash01(seed++, ix, iy);
+        if (h > 0.07) continue;
+        const jx = x + (hash01(ix, iy, 3) - 0.5) * cell * 0.85;
+        const jy = y + (hash01(iy, ix, 5) - 0.5) * cell * 0.85;
+        if (!pointInMercatorRing(jx, jy, ring)) continue;
+        dots.push({
+          mx: jx,
+          my: jy,
+          weight: 0.35 + h * 0.35,
+          size: 1.15 + h * 0.85,
+        });
+      }
+    }
+  }
+
+  return dots;
 }
 
 function featureCentroid(f: Feature): [number, number] {
@@ -187,13 +311,15 @@ function extrasFromFc(fc: FeatureCollection | null): ExtraFeat[] {
         region?: string;
       };
       const geom = simplifyGeometry(f.geometry, 1);
+      const rings = geometryToMercatorRings(geom);
       out.push({
         name: String(props.name ?? "外延区"),
         region: props.region ? String(props.region) : null,
         fill: props.fill ?? MAP_THEME.core,
         opacity: props.opacityHint ?? 0.28,
-        rings: geometryToMercatorRings(geom),
+        rings,
         labelAt: polygonLabelPoint(f.geometry),
+        stipple: buildInfluenceStipple(rings),
       });
     } catch {
       /* skip bad feature */
@@ -387,72 +513,91 @@ export function GeoMap({
       ctx.restore();
     }
 
-    // 外延 / 羁縻：羽化晕染 + 虚线描边（影响力示意，非确定国界）
-    const drawExtras = (list: ExtraFeat[], pathList: Path2D[], mul: number) => {
+    // 外延 / 羁縻：疏朗虚点云；hover 时提亮色与不透明度，标出范围
+    const drawExtras = (list: ExtraFeat[], mul: number) => {
       if (mul <= 0.01) return;
+      const anyLit = glow > 0.01 && glowRegion != null;
       for (let i = 0; i < list.length; i++) {
-        const e = list[i];
-        const path = pathList[i];
+        const e = list[i]!;
         const canGlow = e.region != null && isGlowRegion(e.region);
         const lit =
-          canGlow && glow > 0.01 && glowRegion != null && glowRegion === e.region;
-        const baseFill = dark
+          canGlow && anyLit && glowRegion === e.region;
+        const idleFill = dark
           ? e.region === "maritime"
-            ? "#f0b429"
+            ? "#d4a017"
             : "#2dd4bf"
-          : e.fill;
-        const fillAlpha = Math.min(0.22, 0.15 * mul * (lit ? 1.35 : 1));
-        const dashStroke = dark
-          ? lit
-            ? "rgba(45, 212, 191, 0.55)"
-            : e.region === "maritime"
-              ? "rgba(251, 191, 36, 0.4)"
-              : "rgba(45, 212, 191, 0.4)"
-          : lit
-            ? hexToRgba(e.fill, 0.55)
-            : hexToRgba(e.fill, 0.38);
+          : e.region === "maritime"
+            ? "#a16207"
+            : e.region === "northwest"
+              ? "#0f766e"
+              : e.fill;
+        // hover：直接换高饱和醒目色（非仅调透明度）
+        const litFill =
+          e.region === "maritime"
+            ? dark
+              ? "#fbbf24"
+              : "#f59e0b"
+            : dark
+              ? "#f0fdfa"
+              : "#f97316";
+        const baseFill = lit ? litFill : idleFill;
+        const dim = anyLit && !lit ? 0.4 : 1;
+        const alphaScale = mul * dim;
+        const lift = lit ? -glow * 2.2 : 0;
 
         ctx.save();
-        if (lit) {
-          ctx.translate(0, -glow * 2.4);
+        if (lift) ctx.translate(0, lift);
+
+        if (e.stipple.length > 0) {
+          let cx = 0;
+          let cy = 0;
+          for (const d of e.stipple) {
+            cx += d.mx;
+            cy += d.my;
+          }
+          cx /= e.stipple.length;
+          cy /= e.stipple.length;
+          const sx = cx * view.scale + view.tx;
+          const sy = cy * view.scale + view.ty;
+          const washR = 56 + Math.min(110, view.scale * 0.014);
+          const washCore = lit
+            ? (dark ? 0.28 : 0.22) * (0.55 + glow * 0.45)
+            : dark
+              ? 0.14
+              : 0.1;
+          const wash = ctx.createRadialGradient(sx, sy, 6, sx, sy, washR);
+          wash.addColorStop(0, hexToRgba(baseFill, washCore * mul * dim));
+          wash.addColorStop(1, hexToRgba(baseFill, 0));
+          ctx.fillStyle = wash;
+          ctx.beginPath();
+          ctx.arc(sx, sy, washR, 0, Math.PI * 2);
+          ctx.fill();
         }
 
-        // 外层羽化光晕
-        ctx.shadowColor = hexToRgba(baseFill, dark ? 0.35 : 0.28);
-        ctx.shadowBlur = lit ? 22 + glow * 10 : 18;
-        ctx.fillStyle = hexToRgba(baseFill, fillAlpha * 0.55);
-        ctx.fill(path);
-
-        // 内层低透明实填（仍保持极淡）
-        ctx.shadowBlur = lit ? 12 + glow * 6 : 8;
-        ctx.fillStyle = hexToRgba(baseFill, fillAlpha);
-        ctx.fill(path);
-
-        ctx.shadowBlur = 0;
-        ctx.shadowColor = "transparent";
-
-        // 虚线边界：淡荧光 / 淡琥珀
-        ctx.setLineDash([4, 4]);
-        ctx.lineJoin = "round";
-        ctx.lineCap = "round";
-        ctx.strokeStyle = dashStroke;
-        ctx.lineWidth = lit ? 1.35 : 1.05;
-        ctx.stroke(path);
-        ctx.setLineDash([]);
+        // 实心点：常态青绿/琥珀；hover 直接变为暖白/亮橙
+        for (const d of e.stipple) {
+          const x = d.mx * view.scale + view.tx;
+          const y = d.my * view.scale + view.ty;
+          if (x < -12 || y < -12 || x > w + 12 || y > h + 12) continue;
+          const r = Math.max(
+            1.35,
+            Math.min(3.2, d.size * (lit ? 1.25 : 1))
+          );
+          const a = lit
+            ? Math.min(0.98, 0.82 + d.weight * 0.16) * mul
+            : Math.min(0.72, (dark ? 0.42 : 0.5) + d.weight * 0.28) *
+              alphaScale;
+          ctx.beginPath();
+          ctx.fillStyle = hexToRgba(baseFill, a);
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
 
         ctx.restore();
       }
     };
-    drawExtras(
-      prevExtrasRef.current,
-      paths.prevExtras,
-      hasPrev ? 1 - t : 0
-    );
-    drawExtras(
-      extrasRef.current,
-      paths.extras,
-      hasPrev ? Math.max(t, 0.05) : 1
-    );
+    drawExtras(prevExtrasRef.current, hasPrev ? 1 - t : 0);
+    drawExtras(extrasRef.current, hasPrev ? Math.max(t, 0.05) : 1);
 
     // 5) 省界细线：单次描边，贴合无缝拼图效果
     ctx.save();
@@ -953,19 +1098,33 @@ export function GeoMap({
       const view = viewRef.current;
       const paths = getPaths(view);
 
-      for (let i = extrasRef.current.length - 1; i >= 0; i--) {
-        if (ctx.isPointInPath(paths.extras[i], sx, sy)) {
-          const e = extrasRef.current[i];
-          return { name: e.name, isCore: false, region: e.region };
+      /** 虚点有法向抖动，命中区 = 多边形 ∪ 邻近虚点 */
+      const hitExtra = (e: ExtraFeat, path: Path2D) => {
+        if (ctx.isPointInPath(path, sx, sy)) return true;
+        const hitR = 16;
+        const hitR2 = hitR * hitR;
+        for (const d of e.stipple) {
+          const x = d.mx * view.scale + view.tx;
+          const y = d.my * view.scale + view.ty;
+          const dx = x - sx;
+          const dy = y - sy;
+          if (dx * dx + dy * dy <= hitR2) return true;
         }
+        return false;
+      };
+
+      for (let i = extrasRef.current.length - 1; i >= 0; i--) {
+        const e = extrasRef.current[i]!;
+        if (!hitExtra(e, paths.extras[i]!)) continue;
+        return { name: e.name, isCore: false, region: e.region };
       }
 
       const core = new Set(propsRef.current.coreProvinces);
       let coreHit: string | null = null;
       let landHit: string | null = null;
       for (let i = 0; i < provincesRef.current.length; i++) {
-        if (!ctx.isPointInPath(paths.provinces[i], sx, sy)) continue;
-        const name = provincesRef.current[i].name;
+        if (!ctx.isPointInPath(paths.provinces[i]!, sx, sy)) continue;
+        const name = provincesRef.current[i]!.name;
         if (core.has(name)) coreHit = name;
         else landHit = name;
       }
